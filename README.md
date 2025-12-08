@@ -53,11 +53,7 @@ POWER-UP-FRONTEND/
 │   ├── lib/
 │   │   └── utils.ts     # Utilitários
 │   ├── pages/           # Páginas da aplicação
-│   │   ├── Login.tsx
-│   │   ├── Registro.tsx
-│   │   └── Dashboard.tsx
-│   ├── services/
-│   │   └── api.ts       # Serviço de comunicação com API
+│   │   └── Perfil.tsx
 │   ├── App.tsx          # Componente principal
 │   ├── main.tsx         # Ponto de entrada
 │   └── index.css        # Estilos globais
@@ -65,39 +61,21 @@ POWER-UP-FRONTEND/
 └── package.json
 ```
 
-## 🔌 Configuração da API
-
-O frontend está configurado para se comunicar com o backend em:
-- **URL Base**: `http://localhost:8080/api`
-
-Para alterar a URL da API, edite o arquivo `src/services/api.ts`.
-
 ## 🎨 Componentes shadcn/ui
 
 Os componentes utilizados são:
 - **Button** - Botões estilizados
-- **Input** - Campos de entrada
-- **Label** - Rótulos para formulários
 - **Card** - Cards para conteúdo
+- **Progress** - Barras de progresso
+- **Badge** - Badges e tags
+- **Avatar** - Avatar do usuário
 
 ## 📝 Funcionalidades
 
-### Autenticação
-- ✅ Tela de Login
-- ✅ Tela de Registro
-- ✅ Validação de formulários
-- ✅ Tratamento de erros
-- ✅ Redirecionamento após login/registro
-
-### Dashboard
-- ✅ Página inicial após autenticação
-- ✅ Logout
-
-## 🔐 Endpoints Utilizados
-
-- `POST /api/auth/login` - Autenticação de usuário
-- `POST /api/auth/registro` - Registro de novo usuário
-
-## 📄 Licença
-
-Este projeto faz parte do PowerUP.
+### Tela de Perfil
+- ✅ Header com avatar, nome, nível e título
+- ✅ Badges de conquistas
+- ✅ Estatísticas (Total Treinos e XP Total)
+- ✅ Abas de navegação (Estatísticas e Avatar)
+- ✅ Atributos físicos com barras de progresso
+- ✅ Conquistas recentes com ícones

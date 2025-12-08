@@ -59,7 +59,7 @@ export function Registro() {
           perfilId: response.perfilId,
           username: response.username,
         }));
-        navigate('/dashboard');
+        navigate('/home');
       } else {
         setError(response.mensagem || 'Erro ao criar conta');
       }
