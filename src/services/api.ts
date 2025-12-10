@@ -270,6 +270,46 @@ export const feedbackService = {
   },
 };
 
+// Duelo
+export interface DueloResumo {
+  id: number | null;
+  avatar1Id: number;
+  avatar2Id: number;
+  resultado: string;
+  dataDuelo: string;
+}
+
+export interface RealizarDueloRequest {
+  desafiantePerfilId: number;
+  desafiadoPerfilId: number;
+}
+
+export interface AtributosCalculados {
+  forca: number;
+  resistencia: number;
+  agilidade: number;
+}
+
+export const dueloService = {
+  realizarDuelo: async (desafiantePerfilId: number, desafiadoPerfilId: number): Promise<DueloResumo> => {
+    const response = await api.post<DueloResumo>('/duelos', {
+      desafiantePerfilId,
+      desafiadoPerfilId,
+    });
+    return response.data;
+  },
+
+  obterPorId: async (id: number): Promise<DueloResumo> => {
+    const response = await api.get<DueloResumo>(`/duelos/${id}`);
+    return response.data;
+  },
+
+  obterAtributosAvatar: async (avatarId: number): Promise<AtributosCalculados> => {
+    const response = await api.get<AtributosCalculados>(`/avatars/${avatarId}/atributos`);
+    return response.data;
+  },
+};
+
 // Usuário
 export interface UsuarioResumo {
   usuarioEmail: string;
@@ -304,6 +344,168 @@ export const usuarioService = {
     const emailEncoded = encodeURIComponent(emailRemetente);
     const response = await api.post<string>(`/usuarios/${emailEncoded}/adicionar-amigo/${codigoAmizade}`);
     return response.data;
+  },
+
+  removerAmizade: async (email1: string, email2: string): Promise<string> => {
+    const email1Encoded = encodeURIComponent(email1);
+    const email2Encoded = encodeURIComponent(email2);
+    const response = await api.delete<string>(`/usuarios/${email1Encoded}/amizade/${email2Encoded}`);
+    return response.data;
+  },
+};
+
+// Perfil
+export interface PerfilResumo {
+  id: number;
+  usuarioEmail: string;
+  username: string;
+  foto: string | null;
+  estado: boolean;
+  criacao: string;
+}
+
+export const perfilService = {
+  obterPorEmail: async (email: string): Promise<PerfilResumo> => {
+    try {
+      const emailEncoded = encodeURIComponent(email);
+      const response = await api.get<PerfilResumo>(`/perfis/usuario/${emailEncoded}`);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error('Perfil não encontrado para este email');
+      }
+      throw error;
+    }
+  },
+
+  obterPorId: async (id: number): Promise<PerfilResumo> => {
+    try {
+      const response = await api.get<PerfilResumo>(`/perfis/${id}`);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error('Perfil não encontrado');
+      }
+      throw error;
+    }
+  },
+};
+
+// Exercício
+export interface ExercicioResumo {
+  id: number;
+  nome: string;
+}
+
+export const exercicioService = {
+  listarTodos: async (): Promise<ExercicioResumo[]> => {
+    const response = await api.get<ExercicioResumo[]>('/exercicios');
+    return response.data;
+  },
+
+  obterPorId: async (id: number): Promise<ExercicioResumo> => {
+    const response = await api.get<ExercicioResumo>(`/exercicios/${id}`);
+    return response.data;
+  },
+};
+
+// Plano de Treino
+export type EstadoPlano = 'Ativo' | 'Historico';
+export type Dias = 'Segunda' | 'Terca' | 'Quarta' | 'Quinta' | 'Sexta' | 'Sabado' | 'Domingo';
+export type TipoTreino = 'Cardio' | 'Peso';
+
+export interface TreinoResumo {
+  id: number | null;
+  exercicioId: number;
+  tipo: TipoTreino;
+  repeticoes: number;
+  peso: number;
+  series: number;
+  recordeCarga: number;
+  distancia: number | null;
+  tempo: string | null; // ISO string
+}
+
+export interface PlanoTreinoResumo {
+  id: number | null;
+  usuarioEmail: string;
+  nome: string;
+  estado: EstadoPlano;
+  dias: Dias[];
+  treinos: TreinoResumo[];
+}
+
+export interface CriarPlanoTreinoRequest {
+  id: number | null;
+  usuarioEmail: string;
+  nome: string;
+}
+
+export interface AdicionarTreinoRequest {
+  treinoId: number | null;
+  exercicioId: number;
+  tipo: TipoTreino;
+  repeticoes: number;
+  peso: number;
+  series: number;
+  distancia: number | null;
+  tempo: string | null; // ISO string
+}
+
+export interface AtualizarTreinoRequest {
+  exercicioId: number;
+  tipo: TipoTreino;
+  repeticoes: number;
+  peso: number;
+  series: number;
+  distancia: number | null;
+  tempo: string | null; // ISO string
+}
+
+export const planoTreinoService = {
+  criarPlanoTreino: async (data: CriarPlanoTreinoRequest): Promise<PlanoTreinoResumo> => {
+    const response = await api.post<PlanoTreinoResumo>('/planos-treino', data);
+    return response.data;
+  },
+
+  obterPorId: async (id: number): Promise<PlanoTreinoResumo> => {
+    const response = await api.get<PlanoTreinoResumo>(`/planos-treino/${id}`);
+    return response.data;
+  },
+
+  listarPorUsuario: async (email: string): Promise<PlanoTreinoResumo[]> => {
+    const emailEncoded = encodeURIComponent(email);
+    const response = await api.get<PlanoTreinoResumo[]>(`/planos-treino/usuario/${emailEncoded}`);
+    return response.data;
+  },
+
+  adicionarTreino: async (planoTId: number, data: AdicionarTreinoRequest): Promise<PlanoTreinoResumo> => {
+    const response = await api.post<PlanoTreinoResumo>(`/planos-treino/${planoTId}/treinos`, data);
+    return response.data;
+  },
+
+  removerTreino: async (planoTId: number, treinoId: number): Promise<PlanoTreinoResumo> => {
+    const response = await api.delete<PlanoTreinoResumo>(`/planos-treino/${planoTId}/treinos/${treinoId}`);
+    return response.data;
+  },
+
+  atualizarTreino: async (planoTId: number, treinoId: number, data: AtualizarTreinoRequest): Promise<PlanoTreinoResumo> => {
+    const response = await api.put<PlanoTreinoResumo>(`/planos-treino/${planoTId}/treinos/${treinoId}`, data);
+    return response.data;
+  },
+
+  adicionarDia: async (planoTId: number, dia: Dias): Promise<PlanoTreinoResumo> => {
+    const response = await api.post<PlanoTreinoResumo>(`/planos-treino/${planoTId}/dias`, { dia });
+    return response.data;
+  },
+
+  alterarEstado: async (planoTId: number, estado: EstadoPlano): Promise<PlanoTreinoResumo> => {
+    const response = await api.put<PlanoTreinoResumo>(`/planos-treino/${planoTId}/estado`, { estado });
+    return response.data;
+  },
+
+  excluirPlanoTreino: async (planoTId: number): Promise<void> => {
+    await api.delete(`/planos-treino/${planoTId}`);
   },
 };
 

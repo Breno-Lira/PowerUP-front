@@ -11,7 +11,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { usuarioService, UsuarioResumo } from '@/services/api';
+import { usuarioService, UsuarioResumo, dueloService, perfilService, DueloResumo, AtributosCalculados } from '@/services/api';
+import { Sword, UserMinus } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Grupo {
   id: number;
@@ -30,10 +37,20 @@ export function Social() {
   const [adicionandoAmigo, setAdicionandoAmigo] = useState(false);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
   const [erroAdicionar, setErroAdicionar] = useState<string | null>(null);
+  const [duelando, setDuelando] = useState<string | null>(null); // email do amigo sendo desafiado
+  const [removendoAmizade, setRemovendoAmizade] = useState<string | null>(null); // email do amigo sendo removido
+  const [resultadoDuelo, setResultadoDuelo] = useState<{
+    duelo: DueloResumo;
+    atributosDesafiante: AtributosCalculados;
+    atributosDesafiado: AtributosCalculados;
+    nomeDesafiante: string;
+    nomeDesafiado: string;
+  } | null>(null);
   
   // Obter email do usuário logado
   const userEmail = JSON.parse(localStorage.getItem('user') || '{}')?.email;
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
+  const userPerfilId = userData.perfilId;
   const codigoAmizade = userData.amizadeId ? String(userData.amizadeId) : 'N/A'; // Código de amizade do usuário atual
 
   const grupos: Grupo[] = [
@@ -87,6 +104,121 @@ export function Social() {
   }, [abaAtiva, userEmail]);
 
   // Função para adicionar amigo por código
+  const handleDuelar = async (amigo: UsuarioResumo) => {
+    if (!userPerfilId) {
+      setErroAdicionar('Perfil não encontrado. Faça login novamente.');
+      return;
+    }
+
+    setDuelando(amigo.usuarioEmail);
+    setErroAdicionar(null);
+
+    try {
+      // Buscar perfil do amigo pelo email
+      let perfilAmigo: any;
+      try {
+        perfilAmigo = await perfilService.obterPorEmail(amigo.usuarioEmail);
+      } catch (perfilError: any) {
+        console.error('Erro ao buscar perfil do amigo:', perfilError);
+        setErroAdicionar(perfilError.message || 'Não foi possível encontrar o perfil do amigo. Verifique se o amigo tem um perfil cadastrado.');
+        return;
+      }
+      
+      if (!perfilAmigo || !perfilAmigo.id) {
+        setErroAdicionar('Perfil do amigo não encontrado.');
+        return;
+      }
+      
+      // Realizar duelo (userPerfilId é o desafiante, perfilAmigo.id é o desafiado)
+      const duelo = await dueloService.realizarDuelo(userPerfilId, perfilAmigo.id);
+      
+      // No backend, avatar1 é sempre o desafiante e avatar2 é sempre o desafiado
+      // Buscar atributos de ambos os avatares
+      const atributosDesafiante = await dueloService.obterAtributosAvatar(duelo.avatar1Id);
+      const atributosDesafiado = await dueloService.obterAtributosAvatar(duelo.avatar2Id);
+      
+      setResultadoDuelo({
+        duelo,
+        atributosDesafiante,
+        atributosDesafiado,
+        nomeDesafiante: userData.username || userEmail?.split('@')[0] || 'Você',
+        nomeDesafiado: amigo.nome,
+      });
+    } catch (error: any) {
+      console.error('Erro ao realizar duelo:', error);
+      let errorMessage = 'Erro ao realizar duelo. Tente novamente.';
+      
+      if (error.response) {
+        // Erro da API
+        if (error.response.data) {
+          // Se a resposta é um objeto com message
+          if (typeof error.response.data === 'object' && error.response.data.message) {
+            errorMessage = error.response.data.message;
+          } else if (typeof error.response.data === 'string') {
+            // Se a resposta é uma string
+            errorMessage = error.response.data;
+          } else {
+            errorMessage = error.response.data?.message || error.message || errorMessage;
+          }
+        } else {
+          errorMessage = error.message || errorMessage;
+        }
+      } else if (error.message) {
+        // Erro de rede ou outro erro
+        errorMessage = error.message;
+      }
+      
+      setErroAdicionar(errorMessage);
+    } finally {
+      setDuelando(null);
+    }
+  };
+
+  const handleRemoverAmizade = async (amigo: UsuarioResumo) => {
+    if (!userEmail) {
+      setErroAdicionar('Usuário não autenticado.');
+      return;
+    }
+
+    // Confirmar antes de remover
+    if (!confirm(`Tem certeza que deseja remover ${amigo.nome} da sua lista de amigos?`)) {
+      return;
+    }
+
+    setRemovendoAmizade(amigo.usuarioEmail);
+    setErroAdicionar(null);
+
+    try {
+      await usuarioService.removerAmizade(userEmail, amigo.usuarioEmail);
+      setMensagemSucesso(`${amigo.nome} foi removido da sua lista de amigos.`);
+      // Recarregar lista de amigos
+      recarregarAmigos();
+    } catch (error: any) {
+      console.error('Erro ao remover amizade:', error);
+      let errorMessage = 'Erro ao remover amizade. Tente novamente.';
+      
+      if (error.response) {
+        if (error.response.data) {
+          if (typeof error.response.data === 'object' && error.response.data.message) {
+            errorMessage = error.response.data.message;
+          } else if (typeof error.response.data === 'string') {
+            errorMessage = error.response.data;
+          }
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setErroAdicionar(errorMessage);
+    } finally {
+      setRemovendoAmizade(null);
+      setTimeout(() => {
+        setMensagemSucesso(null);
+        setErroAdicionar(null);
+      }, 3000);
+    }
+  };
+
   const handleAdicionarAmigo = async () => {
     if (!codigoAmizadeInput.trim()) {
       setErroAdicionar('Por favor, insira um código de amizade');
@@ -331,6 +463,46 @@ export function Social() {
                           <p className="font-medium">{amigo.nome}</p>
                           <p className="text-sm text-muted-foreground">{amigo.usuarioEmail}</p>
                         </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDuelar(amigo)}
+                            disabled={duelando === amigo.usuarioEmail || removendoAmizade === amigo.usuarioEmail || !userPerfilId}
+                            className="gap-2"
+                          >
+                            {duelando === amigo.usuarioEmail ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Duelando...
+                              </>
+                            ) : (
+                              <>
+                                <Sword className="h-4 w-4" />
+                                Duelar
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoverAmizade(amigo)}
+                            disabled={duelando === amigo.usuarioEmail || removendoAmizade === amigo.usuarioEmail}
+                            className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            {removendoAmizade === amigo.usuarioEmail ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Removendo...
+                              </>
+                            ) : (
+                              <>
+                                <UserMinus className="h-4 w-4" />
+                                Remover
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -412,6 +584,136 @@ export function Social() {
           </Card>
         </div>
       </div>
+
+      {/* Dialog de Resultado do Duelo */}
+      <Dialog open={resultadoDuelo !== null} onOpenChange={(open) => !open && setResultadoDuelo(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Resultado do Duelo</DialogTitle>
+          </DialogHeader>
+          {resultadoDuelo && (
+            <div className="space-y-6 mt-4">
+              {/* Resultado */}
+              <div className="text-center">
+                {resultadoDuelo.duelo.resultado === 'VITORIA_DESAFIANTE(A1)' ? (
+                  <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4">
+                    <p className="text-2xl font-bold text-green-800">🎉 Vitória!</p>
+                    <p className="text-green-700 mt-2">Você venceu o duelo contra {resultadoDuelo.nomeDesafiado}!</p>
+                  </div>
+                ) : resultadoDuelo.duelo.resultado === 'VITORIA_DESAFIADO(A2)' ? (
+                  <div className="bg-red-100 border-2 border-red-500 rounded-lg p-4">
+                    <p className="text-2xl font-bold text-red-800">💔 Derrota</p>
+                    <p className="text-red-700 mt-2">Você foi derrotado por {resultadoDuelo.nomeDesafiado}.</p>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4">
+                    <p className="text-2xl font-bold text-yellow-800">🤝 Empate</p>
+                    <p className="text-yellow-700 mt-2">O duelo terminou em empate!</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Comparação de Atributos */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Desafiante */}
+                <div className="border rounded-lg p-4 bg-blue-50">
+                  <h3 className="font-bold text-lg mb-3 text-center">{resultadoDuelo.nomeDesafiante}</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Força:</span>
+                      <span className="font-semibold">{resultadoDuelo.atributosDesafiante.forca}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Resistência:</span>
+                      <span className="font-semibold">{resultadoDuelo.atributosDesafiante.resistencia}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Agilidade:</span>
+                      <span className="font-semibold">{resultadoDuelo.atributosDesafiante.agilidade}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desafiado */}
+                <div className="border rounded-lg p-4 bg-purple-50">
+                  <h3 className="font-bold text-lg mb-3 text-center">{resultadoDuelo.nomeDesafiado}</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Força:</span>
+                      <span className="font-semibold">{resultadoDuelo.atributosDesafiado.forca}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Resistência:</span>
+                      <span className="font-semibold">{resultadoDuelo.atributosDesafiado.resistencia}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Agilidade:</span>
+                      <span className="font-semibold">{resultadoDuelo.atributosDesafiado.agilidade}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Comparação Visual */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-center">Comparação de Atributos</h4>
+                
+                {/* Força */}
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-medium">Força</span>
+                    <span className="text-muted-foreground">{resultadoDuelo.atributosDesafiante.forca} vs {resultadoDuelo.atributosDesafiado.forca}</span>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 bg-blue-200 rounded h-6 flex items-center justify-end pr-2" style={{ width: `${(resultadoDuelo.atributosDesafiante.forca / Math.max(resultadoDuelo.atributosDesafiante.forca, resultadoDuelo.atributosDesafiado.forca, 1)) * 100}%` }}>
+                      {resultadoDuelo.atributosDesafiante.forca > resultadoDuelo.atributosDesafiado.forca && <span className="text-xs font-bold text-blue-800">✓</span>}
+                    </div>
+                    <div className="flex-1 bg-purple-200 rounded h-6 flex items-center justify-start pl-2" style={{ width: `${(resultadoDuelo.atributosDesafiado.forca / Math.max(resultadoDuelo.atributosDesafiante.forca, resultadoDuelo.atributosDesafiado.forca, 1)) * 100}%` }}>
+                      {resultadoDuelo.atributosDesafiado.forca > resultadoDuelo.atributosDesafiante.forca && <span className="text-xs font-bold text-purple-800">✓</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Resistência */}
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-medium">Resistência</span>
+                    <span className="text-muted-foreground">{resultadoDuelo.atributosDesafiante.resistencia} vs {resultadoDuelo.atributosDesafiado.resistencia}</span>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 bg-blue-200 rounded h-6 flex items-center justify-end pr-2" style={{ width: `${(resultadoDuelo.atributosDesafiante.resistencia / Math.max(resultadoDuelo.atributosDesafiante.resistencia, resultadoDuelo.atributosDesafiado.resistencia, 1)) * 100}%` }}>
+                      {resultadoDuelo.atributosDesafiante.resistencia > resultadoDuelo.atributosDesafiado.resistencia && <span className="text-xs font-bold text-blue-800">✓</span>}
+                    </div>
+                    <div className="flex-1 bg-purple-200 rounded h-6 flex items-center justify-start pl-2" style={{ width: `${(resultadoDuelo.atributosDesafiado.resistencia / Math.max(resultadoDuelo.atributosDesafiante.resistencia, resultadoDuelo.atributosDesafiado.resistencia, 1)) * 100}%` }}>
+                      {resultadoDuelo.atributosDesafiado.resistencia > resultadoDuelo.atributosDesafiante.resistencia && <span className="text-xs font-bold text-purple-800">✓</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Agilidade */}
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-medium">Agilidade</span>
+                    <span className="text-muted-foreground">{resultadoDuelo.atributosDesafiante.agilidade} vs {resultadoDuelo.atributosDesafiado.agilidade}</span>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 bg-blue-200 rounded h-6 flex items-center justify-end pr-2" style={{ width: `${(resultadoDuelo.atributosDesafiante.agilidade / Math.max(resultadoDuelo.atributosDesafiante.agilidade, resultadoDuelo.atributosDesafiado.agilidade, 1)) * 100}%` }}>
+                      {resultadoDuelo.atributosDesafiante.agilidade > resultadoDuelo.atributosDesafiado.agilidade && <span className="text-xs font-bold text-blue-800">✓</span>}
+                    </div>
+                    <div className="flex-1 bg-purple-200 rounded h-6 flex items-center justify-start pl-2" style={{ width: `${(resultadoDuelo.atributosDesafiado.agilidade / Math.max(resultadoDuelo.atributosDesafiante.agilidade, resultadoDuelo.atributosDesafiado.agilidade, 1)) * 100}%` }}>
+                      {resultadoDuelo.atributosDesafiado.agilidade > resultadoDuelo.atributosDesafiante.agilidade && <span className="text-xs font-bold text-purple-800">✓</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={() => setResultadoDuelo(null)}>Fechar</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
