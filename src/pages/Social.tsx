@@ -11,7 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { usuarioService, UsuarioResumo, dueloService, perfilService, DueloResumo, AtributosCalculados } from '@/services/api';
+import { usuarioService, UsuarioResumo, dueloService, perfilService, DueloResumo, AtributosCalculados, equipeService, EquipeResumo, CriarEquipeRequest } from '@/services/api';
 import { Sword, UserMinus } from 'lucide-react';
 import {
   Dialog,
@@ -20,11 +20,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-interface Grupo {
-  id: number;
-  nome: string;
-  posicao: number;
-}
+// Interface removida - usando EquipeResumo do serviço
 
 export function Social() {
   const navigate = useNavigate();
@@ -47,17 +43,21 @@ export function Social() {
     nomeDesafiado: string;
   } | null>(null);
   
+  // Estados para equipes
+  const [equipes, setEquipes] = useState<EquipeResumo[]>([]);
+  const [carregandoEquipes, setCarregandoEquipes] = useState(false);
+  const [erroEquipes, setErroEquipes] = useState<string | null>(null);
+  const [modalCriarEquipeAberto, setModalCriarEquipeAberto] = useState(false);
+  const [criandoEquipe, setCriandoEquipe] = useState(false);
+  const [nomeNovaEquipe, setNomeNovaEquipe] = useState('');
+  const [descricaoNovaEquipe, setDescricaoNovaEquipe] = useState('');
+  const [erroCriarEquipe, setErroCriarEquipe] = useState<string | null>(null);
+  
   // Obter email do usuário logado
   const userEmail = JSON.parse(localStorage.getItem('user') || '{}')?.email;
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userPerfilId = userData.perfilId;
   const codigoAmizade = userData.amizadeId ? String(userData.amizadeId) : 'N/A'; // Código de amizade do usuário atual
-
-  const grupos: Grupo[] = [
-    { id: 1, nome: 'Projetinho Fellas', posicao: 3 },
-    { id: 2, nome: 'Gladiadores do Ferro', posicao: 5 },
-    { id: 3, nome: 'Estoicos, os Robustos', posicao: 6 },
-  ];
 
   const menuItems = [
     { label: 'Home', path: '/home' },
@@ -96,12 +96,77 @@ export function Social() {
     }
   };
 
+  // Função para carregar equipes do usuário
+  const carregarEquipes = async () => {
+    if (!userEmail) return;
+    
+    setCarregandoEquipes(true);
+    setErroEquipes(null);
+    
+    try {
+      const equipesLista = await equipeService.listarPorUsuario(userEmail);
+      setEquipes(equipesLista);
+    } catch (error: any) {
+      console.error('Erro ao carregar equipes:', error);
+      setErroEquipes('Erro ao carregar equipes. Tente novamente.');
+    } finally {
+      setCarregandoEquipes(false);
+    }
+  };
+
+  // Função para criar equipe
+  const handleCriarEquipe = async () => {
+    if (!nomeNovaEquipe.trim()) {
+      setErroCriarEquipe('Por favor, insira um nome para a equipe.');
+      return;
+    }
+
+    if (!userEmail) {
+      setErroCriarEquipe('Usuário não autenticado.');
+      return;
+    }
+
+    setCriandoEquipe(true);
+    setErroCriarEquipe(null);
+
+    try {
+      await equipeService.criarEquipe({
+        nome: nomeNovaEquipe.trim(),
+        usuarioAdmEmail: userEmail,
+        descricao: descricaoNovaEquipe.trim() || undefined,
+      });
+      
+      setNomeNovaEquipe('');
+      setDescricaoNovaEquipe('');
+      setModalCriarEquipeAberto(false);
+      setMensagemSucesso('Equipe criada com sucesso!');
+      
+      // Recarregar lista de equipes
+      await carregarEquipes();
+      
+      setTimeout(() => setMensagemSucesso(null), 3000);
+    } catch (error: any) {
+      console.error('Erro ao criar equipe:', error);
+      const mensagemErro = error.response?.data || error.message || 'Erro ao criar equipe. Tente novamente.';
+      setErroCriarEquipe(mensagemErro);
+    } finally {
+      setCriandoEquipe(false);
+    }
+  };
+
   // Buscar amigos quando a aba de amizades estiver ativa
   useEffect(() => {
     if (abaAtiva === 'amizades' && userEmail) {
       recarregarAmigos();
     }
   }, [abaAtiva, userEmail]);
+
+  // Carregar equipes quando o componente montar
+  useEffect(() => {
+    if (userEmail) {
+      carregarEquipes();
+    }
+  }, [userEmail]);
 
   // Função para adicionar amigo por código
   const handleDuelar = async (amigo: UsuarioResumo) => {
@@ -326,8 +391,12 @@ export function Social() {
             >
               Rival
             </Button>
-            <Button variant="default" className="flex-1">
-              Criar grupo +
+            <Button 
+              variant="default" 
+              className="flex-1"
+              onClick={() => setModalCriarEquipeAberto(true)}
+            >
+              Criar equipe +
             </Button>
           </div>
 
@@ -529,24 +598,55 @@ export function Social() {
             </CardContent>
           </Card>
 
-          {/* Seção Meus Grupos */}
+          {/* Seção Minhas Equipes */}
           <Card>
             <CardHeader>
-              <CardTitle>Meus Grupos</CardTitle>
+              <CardTitle>Minhas Equipes</CardTitle>
             </CardHeader>
             <CardContent>
-                  <div className="space-y-3">
-                    {grupos.map((grupo) => (
-                      <button
-                        key={grupo.id}
-                        onClick={() => navigate(`/grupo/${grupo.id}`)}
-                        className="w-full flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors text-left"
-                      >
-                        <span className="font-medium">{grupo.nome}</span>
-                        <span className="text-sm text-muted-foreground">#{grupo.posicao}</span>
-                      </button>
-                    ))}
-                  </div>
+              {carregandoEquipes ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Carregando equipes...</span>
+                </div>
+              ) : erroEquipes ? (
+                <div className="text-center py-8 text-destructive">
+                  <p>{erroEquipes}</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={carregarEquipes}
+                  >
+                    Tentar novamente
+                  </Button>
+                </div>
+              ) : equipes.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Você ainda não está em nenhuma equipe.</p>
+                  <p className="text-sm mt-2">Crie uma equipe ou peça para ser adicionado a uma!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {equipes.map((equipe) => (
+                    <button
+                      key={equipe.id}
+                      onClick={() => navigate(`/equipe/${equipe.id}`)}
+                      className="w-full flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors text-left"
+                    >
+                      <div className="flex-1">
+                        <span className="font-medium block">{equipe.nome}</span>
+                        {equipe.descricao && (
+                          <span className="text-sm text-muted-foreground block mt-1">{equipe.descricao}</span>
+                        )}
+                        <span className="text-xs text-muted-foreground block mt-1">
+                          {equipe.quantidadeMembros} {equipe.quantidadeMembros === 1 ? 'membro' : 'membros'}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -712,6 +812,101 @@ export function Social() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Criar Equipe */}
+      <Dialog open={modalCriarEquipeAberto} onOpenChange={setModalCriarEquipeAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Nova Equipe</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <label htmlFor="nomeEquipe" className="text-sm font-medium">
+                Nome da Equipe *
+              </label>
+              <Input
+                id="nomeEquipe"
+                type="text"
+                placeholder="Digite o nome da equipe"
+                value={nomeNovaEquipe}
+                onChange={(e) => {
+                  setNomeNovaEquipe(e.target.value);
+                  setErroCriarEquipe(null);
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCriarEquipe();
+                  }
+                }}
+                disabled={criandoEquipe}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label htmlFor="descricaoEquipe" className="text-sm font-medium">
+                Descrição (opcional)
+              </label>
+              <Input
+                id="descricaoEquipe"
+                type="text"
+                placeholder="Digite uma descrição para a equipe"
+                value={descricaoNovaEquipe}
+                onChange={(e) => {
+                  setDescricaoNovaEquipe(e.target.value);
+                  setErroCriarEquipe(null);
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCriarEquipe();
+                  }
+                }}
+                disabled={criandoEquipe}
+                className="mt-1"
+              />
+            </div>
+            {erroCriarEquipe && (
+              <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm flex items-center justify-between">
+                <span>{erroCriarEquipe}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setErroCriarEquipe(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setModalCriarEquipeAberto(false);
+                  setNomeNovaEquipe('');
+                  setDescricaoNovaEquipe('');
+                  setErroCriarEquipe(null);
+                }}
+                disabled={criandoEquipe}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleCriarEquipe}
+                disabled={criandoEquipe || !nomeNovaEquipe.trim()}
+              >
+                {criandoEquipe ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  'Criar Equipe'
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

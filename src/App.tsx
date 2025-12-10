@@ -10,6 +10,7 @@ import { Loja } from './pages/Loja';
 import { Ranking } from './pages/Ranking';
 import { Social } from './pages/Social';
 import { Grupo } from './pages/Grupo';
+import { Equipe } from './pages/Equipe';
 import { ArenaDuelos } from './pages/ArenaDuelos';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -92,6 +93,14 @@ function App() {
           element={
             <PrivateRoute>
               <Grupo />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/equipe/:id"
+          element={
+            <PrivateRoute>
+              <Equipe />
             </PrivateRoute>
           }
         />

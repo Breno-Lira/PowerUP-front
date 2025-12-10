@@ -591,5 +591,126 @@ export const frequenciaService = {
   },
 };
 
+// Equipe
+export interface EquipeResumo {
+  id: number;
+  nome: string;
+  descricao: string | null;
+  foto: string | null;
+  inicio: string | null;
+  fim: string | null;
+  usuarioAdm: string;
+  usuariosEmails: string[];
+  quantidadeMembros: number;
+}
+
+export interface CriarEquipeRequest {
+  id?: number;
+  nome: string;
+  usuarioAdmEmail: string;
+  descricao?: string;
+}
+
+export interface AdicionarMembroRequest {
+  novoMembroEmail: string;
+}
+
+export interface AtualizarInformacoesRequest {
+  nome: string;
+  descricao: string | null;
+  foto: string | null;
+}
+
+export interface DefinirPeriodoRequest {
+  inicio: string | null;
+  fim: string | null;
+}
+
+export const equipeService = {
+  criarEquipe: async (data: CriarEquipeRequest): Promise<EquipeResumo> => {
+    const response = await api.post<EquipeResumo>('/equipes', data);
+    return response.data;
+  },
+
+  obterPorId: async (id: number): Promise<EquipeResumo> => {
+    const response = await api.get<EquipeResumo>(`/equipes/${id}`);
+    return response.data;
+  },
+
+  listarPorUsuario: async (email: string): Promise<EquipeResumo[]> => {
+    const emailEncoded = encodeURIComponent(email);
+    const response = await api.get<EquipeResumo[]>(`/equipes/usuario/${emailEncoded}`);
+    return response.data;
+  },
+
+  adicionarMembro: async (equipeId: number, novoMembroEmail: string): Promise<EquipeResumo> => {
+    const response = await api.post<EquipeResumo>(`/equipes/${equipeId}/membros`, {
+      novoMembroEmail,
+    });
+    return response.data;
+  },
+
+  removerMembro: async (equipeId: number, membroEmail: string, usuarioEmail: string): Promise<EquipeResumo> => {
+    const emailEncoded = encodeURIComponent(membroEmail);
+    const usuarioEmailEncoded = encodeURIComponent(usuarioEmail);
+    const response = await api.delete<EquipeResumo>(`/equipes/${equipeId}/membros/${emailEncoded}?usuarioEmail=${usuarioEmailEncoded}`);
+    return response.data;
+  },
+
+  excluirEquipe: async (equipeId: number, usuarioEmail: string): Promise<void> => {
+    const usuarioEmailEncoded = encodeURIComponent(usuarioEmail);
+    await api.delete(`/equipes/${equipeId}?usuarioEmail=${usuarioEmailEncoded}`);
+  },
+
+  atualizarInformacoes: async (
+    equipeId: number,
+    data: AtualizarInformacoesRequest
+  ): Promise<EquipeResumo> => {
+    const response = await api.put<EquipeResumo>(`/equipes/${equipeId}`, data);
+    return response.data;
+  },
+
+  definirPeriodo: async (
+    equipeId: number,
+    data: DefinirPeriodoRequest
+  ): Promise<EquipeResumo> => {
+    const response = await api.put<EquipeResumo>(`/equipes/${equipeId}/periodo`, data);
+    return response.data;
+  },
+
+  isLider: async (equipeId: number, usuarioEmail: string): Promise<boolean> => {
+    const emailEncoded = encodeURIComponent(usuarioEmail);
+    const response = await api.get<boolean>(`/equipes/${equipeId}/is-lider/${emailEncoded}`);
+    return response.data;
+  },
+
+  isMembro: async (equipeId: number, usuarioEmail: string): Promise<boolean> => {
+    const emailEncoded = encodeURIComponent(usuarioEmail);
+    const response = await api.get<boolean>(`/equipes/${equipeId}/is-membro/${emailEncoded}`);
+    return response.data;
+  },
+
+  isMembro: async (equipeId: number, usuarioEmail: string): Promise<boolean> => {
+    const emailEncoded = encodeURIComponent(usuarioEmail);
+    const response = await api.get<boolean>(`/equipes/${equipeId}/is-membro/${emailEncoded}`);
+    return response.data;
+  },
+
+  listarMembros: async (equipeId: number): Promise<string[]> => {
+    const response = await api.get<string[]>(`/equipes/${equipeId}/membros`);
+    return response.data;
+  },
+
+  obterRanking: async (equipeId: number): Promise<MembroRanking[]> => {
+    const response = await api.get<MembroRanking[]>(`/equipes/${equipeId}/ranking`);
+    return response.data;
+  },
+};
+
+export interface MembroRanking {
+  email: string;
+  diasConsecutivos: number;
+}
+
 export default api;
 
