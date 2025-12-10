@@ -36,6 +36,7 @@ export interface LoginResponse {
   email: string | null;
   perfilId: number | null;
   username: string | null;
+  amizadeId: number | null;
 }
 
 export interface RegistroRequest {
@@ -52,6 +53,7 @@ export interface RegistroResponse {
   email: string | null;
   perfilId: number | null;
   username: string | null;
+  amizadeId: number | null;
 }
 
 export const authService = {
@@ -264,6 +266,43 @@ export const feedbackService = {
 
   obter: async (id: number): Promise<Feedback> => {
     const response = await api.get<Feedback>(`/feedbacks/${id}`);
+    return response.data;
+  },
+};
+
+// Usuário
+export interface UsuarioResumo {
+  usuarioEmail: string;
+  amizadeId: number | null;
+  nome: string;
+  senha: string;
+  dataNascimento: string; // formato: YYYY-MM-DD
+}
+
+export const usuarioService = {
+  obterPorEmail: async (email: string): Promise<UsuarioResumo> => {
+    const emailEncoded = encodeURIComponent(email);
+    const response = await api.get<UsuarioResumo>(`/usuarios/${emailEncoded}`);
+    return response.data;
+  },
+
+  listarAmigos: async (email: string): Promise<UsuarioResumo[]> => {
+    const emailEncoded = encodeURIComponent(email);
+    try {
+      const response = await api.get<UsuarioResumo[]>(`/usuarios/${emailEncoded}/amigos`);
+      return response.data;
+    } catch (error: any) {
+      // Se for 404 ou não houver amigos, retornar array vazio
+      if (error.response?.status === 404 || error.response?.status === 204) {
+        return [];
+      }
+      throw error;
+    }
+  },
+
+  adicionarAmigoPorCodigo: async (emailRemetente: string, codigoAmizade: number): Promise<string> => {
+    const emailEncoded = encodeURIComponent(emailRemetente);
+    const response = await api.post<string>(`/usuarios/${emailEncoded}/adicionar-amigo/${codigoAmizade}`);
     return response.data;
   },
 };

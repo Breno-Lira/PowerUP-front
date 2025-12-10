@@ -58,6 +58,7 @@ export function Registro() {
           email: response.email,
           perfilId: response.perfilId,
           username: response.username,
+          amizadeId: response.amizadeId,
         }));
         navigate('/home');
       } else {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Menu, Settings, Dumbbell, TrendingUp, Sword, Flame, Activity } from 'lucide-react';
+import { Menu, Settings, Dumbbell, TrendingUp, Sword, Flame, Activity, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,10 @@ export function Perfil() {
   const [perfil, setPerfil] = useState<PerfilData | null>(null);
   const [loading, setLoading] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<'estatisticas' | 'avatar'>('estatisticas');
+  
+  // Obter dados do usuário logado
+  const userData = JSON.parse(localStorage.getItem('user') || '{}');
+  const userEmail = userData.email;
 
   useEffect(() => {
     // Dados mockados baseados no wireframe
@@ -141,7 +145,25 @@ export function Perfil() {
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
-              <nav className="mt-8 space-y-2">
+              
+              {/* Informações do usuário logado */}
+              <div className="mt-6 mb-6 pb-6 border-b">
+                <div className="flex items-center gap-3 px-4">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">
+                      {userData.username || userEmail || 'Usuário'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {userEmail || 'email@exemplo.com'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <nav className="space-y-2">
                 {menuItems.map((item) => (
                   <button
                     key={item.path}
