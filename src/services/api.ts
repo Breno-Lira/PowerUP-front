@@ -712,5 +712,82 @@ export interface MembroRanking {
   diasConsecutivos: number;
 }
 
+// Rivalidade
+export interface RivalidadeResumo {
+  id: number;
+  perfil1: number;
+  perfil2: number;
+  dataConvite: string;
+  inicio: string | null;
+  fim: string | null;
+  status: 'PENDENTE' | 'ATIVA' | 'RECUSADA' | 'FINALIZADA' | 'CANCELADA';
+}
+
+export interface ComparacaoRivalidade {
+  nomeUsuario: string;
+  nomeRival: string;
+  fotoUsuario: string | null;
+  fotoRival: string | null;
+  streakUsuario: number;
+  streakRival: number;
+  treinosSemanaUsuario: number;
+  treinosSemanaRival: number;
+  duelosGanhosUsuario: number;
+  duelosGanhosRival: number;
+}
+
+export interface EnviarConviteRequest {
+  perfil1Id: number;
+  perfil2Id: number;
+  exercicioId: number;
+}
+
+export interface AceitarRivalidadeRequest {
+  rivalidadeId: number;
+  usuarioId: number;
+}
+
+export interface RecusarRivalidadeRequest {
+  rivalidadeId: number;
+  usuarioId: number;
+}
+
+export interface FinalizarRivalidadeRequest {
+  rivalidadeId: number;
+  usuarioId: number;
+}
+
+export const rivalidadeService = {
+  enviarConvite: async (data: EnviarConviteRequest): Promise<RivalidadeResumo> => {
+    const response = await api.post<RivalidadeResumo>('/rivalidades/enviar-convite', data);
+    return response.data;
+  },
+
+  aceitar: async (data: AceitarRivalidadeRequest): Promise<RivalidadeResumo> => {
+    const response = await api.post<RivalidadeResumo>('/rivalidades/aceitar', data);
+    return response.data;
+  },
+
+  recusar: async (data: RecusarRivalidadeRequest): Promise<RivalidadeResumo> => {
+    const response = await api.post<RivalidadeResumo>('/rivalidades/recusar', data);
+    return response.data;
+  },
+
+  finalizar: async (data: FinalizarRivalidadeRequest): Promise<RivalidadeResumo> => {
+    const response = await api.post<RivalidadeResumo>('/rivalidades/finalizar', data);
+    return response.data;
+  },
+
+  listarPorPerfil: async (perfilId: number): Promise<RivalidadeResumo[]> => {
+    const response = await api.get<RivalidadeResumo[]>(`/rivalidades/perfil/${perfilId}`);
+    return response.data;
+  },
+
+  obterComparacao: async (rivalidadeId: number, perfilId: number): Promise<ComparacaoRivalidade> => {
+    const response = await api.get<ComparacaoRivalidade>(`/rivalidades/${rivalidadeId}/comparacao?perfilId=${perfilId}`);
+    return response.data;
+  },
+};
+
 export default api;
 

@@ -11,7 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { usuarioService, UsuarioResumo, dueloService, perfilService, DueloResumo, AtributosCalculados, equipeService, EquipeResumo, CriarEquipeRequest } from '@/services/api';
+import { usuarioService, UsuarioResumo, dueloService, perfilService, DueloResumo, AtributosCalculados, equipeService, EquipeResumo, CriarEquipeRequest, rivalidadeService, RivalidadeResumo, ComparacaoRivalidade } from '@/services/api';
 import { Sword, UserMinus } from 'lucide-react';
 import {
   Dialog,
@@ -52,6 +52,18 @@ export function Social() {
   const [nomeNovaEquipe, setNomeNovaEquipe] = useState('');
   const [descricaoNovaEquipe, setDescricaoNovaEquipe] = useState('');
   const [erroCriarEquipe, setErroCriarEquipe] = useState<string | null>(null);
+  
+  // Estados para rivalidade
+  const [rivalidades, setRivalidades] = useState<RivalidadeResumo[]>([]);
+  const [carregandoRivalidades, setCarregandoRivalidades] = useState(false);
+  const [rivalidadeAtiva, setRivalidadeAtiva] = useState<RivalidadeResumo | null>(null);
+  const [comparacao, setComparacao] = useState<ComparacaoRivalidade | null>(null);
+  const [carregandoComparacao, setCarregandoComparacao] = useState(false);
+  const [modalEnviarConvite, setModalEnviarConvite] = useState(false);
+  const [amigoSelecionado, setAmigoSelecionado] = useState<UsuarioResumo | null>(null);
+  const [enviandoConvite, setEnviandoConvite] = useState(false);
+  const [erroRivalidade, setErroRivalidade] = useState<string | null>(null);
+  const [perfisAmigos, setPerfisAmigos] = useState<Map<string, number>>(new Map());
   
   // Obter email do usuário logado
   const userEmail = JSON.parse(localStorage.getItem('user') || '{}')?.email;
@@ -167,6 +179,214 @@ export function Social() {
       carregarEquipes();
     }
   }, [userEmail]);
+
+  // Carregar rivalidades quando a aba rival estiver ativa
+  useEffect(() => {
+    if (abaAtiva === 'rival' && userPerfilId) {
+      carregarRivalidades();
+    }
+  }, [abaAtiva, userPerfilId]);
+
+  // Carregar perfis dos amigos quando a lista de amigos mudar
+  useEffect(() => {
+    const carregarPerfisAmigos = async () => {
+      if (amigos.length === 0) {
+        setPerfisAmigos(new Map());
+        return;
+      }
+
+      const novoMapa = new Map<string, number>();
+      for (const amigo of amigos) {
+        try {
+          const perfil = await perfilService.obterPorEmail(amigo.usuarioEmail);
+          if (perfil && perfil.id) {
+            novoMapa.set(amigo.usuarioEmail, perfil.id);
+          }
+        } catch (error) {
+          console.error(`Erro ao buscar perfil de ${amigo.usuarioEmail}:`, error);
+        }
+      }
+      setPerfisAmigos(novoMapa);
+    };
+
+    if (abaAtiva === 'rival') {
+      carregarPerfisAmigos();
+    }
+  }, [amigos, abaAtiva]);
+
+  // Carregar comparação quando houver rivalidade ativa
+  useEffect(() => {
+    const carregarComparacao = async () => {
+      if (!rivalidadeAtiva || !userPerfilId) {
+        setComparacao(null);
+        return;
+      }
+      
+      setCarregandoComparacao(true);
+      try {
+        const comparacaoData = await rivalidadeService.obterComparacao(rivalidadeAtiva.id, userPerfilId);
+        setComparacao(comparacaoData);
+      } catch (error: any) {
+        console.error('Erro ao carregar comparação:', error);
+        setComparacao(null);
+      } finally {
+        setCarregandoComparacao(false);
+      }
+    };
+
+    carregarComparacao();
+  }, [rivalidadeAtiva, userPerfilId]);
+
+  const carregarRivalidades = async () => {
+    if (!userPerfilId) return;
+    
+    setCarregandoRivalidades(true);
+    setErroRivalidade(null);
+    
+    try {
+      const lista = await rivalidadeService.listarPorPerfil(userPerfilId);
+      setRivalidades(lista);
+      
+      // Encontrar rivalidade ativa
+      const ativa = lista.find(r => r.status === 'ATIVA');
+      setRivalidadeAtiva(ativa || null);
+    } catch (error: any) {
+      console.error('Erro ao carregar rivalidades:', error);
+      setErroRivalidade('Erro ao carregar rivalidades. Tente novamente.');
+    } finally {
+      setCarregandoRivalidades(false);
+    }
+  };
+
+
+  const handleEnviarConvite = async (amigo: UsuarioResumo) => {
+    if (!userPerfilId) {
+      setErroRivalidade('Perfil não encontrado. Faça login novamente.');
+      return;
+    }
+
+    setAmigoSelecionado(amigo);
+    setModalEnviarConvite(true);
+  };
+
+  const confirmarEnviarConvite = async () => {
+    if (!amigoSelecionado || !userPerfilId) return;
+
+    setEnviandoConvite(true);
+    setErroRivalidade(null);
+
+    try {
+      // Buscar perfil do amigo
+      const perfilAmigo = await perfilService.obterPorEmail(amigoSelecionado.usuarioEmail);
+      
+      if (!perfilAmigo || !perfilAmigo.id) {
+        setErroRivalidade('Perfil do amigo não encontrado.');
+        return;
+      }
+      
+      // Por enquanto, vamos usar exercicioId = 1 como padrão
+      // Isso pode ser melhorado depois para permitir escolher o exercício
+      await rivalidadeService.enviarConvite({
+        perfil1Id: userPerfilId,
+        perfil2Id: perfilAmigo.id,
+        exercicioId: 1, // TODO: Permitir escolher exercício
+      });
+      
+      setModalEnviarConvite(false);
+      setAmigoSelecionado(null);
+      setMensagemSucesso('Convite de rivalidade enviado com sucesso!');
+      setTimeout(() => setMensagemSucesso(null), 3000);
+      
+      // Recarregar rivalidades
+      await carregarRivalidades();
+    } catch (error: any) {
+      console.error('Erro ao enviar convite:', error);
+      let mensagemErro = 'Erro ao enviar convite. Tente novamente.';
+      
+      if (error.response) {
+        // Se a resposta tem uma mensagem específica
+        if (error.response.data?.mensagem) {
+          mensagemErro = error.response.data.mensagem;
+        } else if (typeof error.response.data === 'string') {
+          mensagemErro = error.response.data;
+        } else if (error.response.status === 400) {
+          mensagemErro = error.response.data?.mensagem || 'Não foi possível enviar o convite. Verifique se você ou o amigo já possui uma rivalidade ativa.';
+        } else if (error.response.status === 500) {
+          mensagemErro = 'Erro no servidor. Tente novamente mais tarde.';
+        }
+      } else if (error.message) {
+        mensagemErro = error.message;
+      }
+      
+      setErroRivalidade(mensagemErro);
+    } finally {
+      setEnviandoConvite(false);
+    }
+  };
+
+  const handleAceitarConvite = async (rivalidade: RivalidadeResumo) => {
+    if (!userPerfilId) return;
+
+    try {
+      await rivalidadeService.aceitar({
+        rivalidadeId: rivalidade.id,
+        usuarioId: userPerfilId,
+      });
+      
+      setMensagemSucesso('Rivalidade aceita com sucesso!');
+      setTimeout(() => setMensagemSucesso(null), 3000);
+      await carregarRivalidades();
+    } catch (error: any) {
+      console.error('Erro ao aceitar convite:', error);
+      setErroRivalidade(error.response?.data || error.message || 'Erro ao aceitar convite.');
+    }
+  };
+
+  const handleRecusarConvite = async (rivalidade: RivalidadeResumo) => {
+    if (!userPerfilId) return;
+
+    try {
+      await rivalidadeService.recusar({
+        rivalidadeId: rivalidade.id,
+        usuarioId: userPerfilId,
+      });
+      
+      setMensagemSucesso('Convite recusado.');
+      setTimeout(() => setMensagemSucesso(null), 3000);
+      await carregarRivalidades();
+    } catch (error: any) {
+      console.error('Erro ao recusar convite:', error);
+      setErroRivalidade(error.response?.data || error.message || 'Erro ao recusar convite.');
+    }
+  };
+
+  const handleFinalizarRivalidade = async (rivalidade: RivalidadeResumo) => {
+    if (!userPerfilId) return;
+
+    if (!confirm('Tem certeza que deseja finalizar esta rivalidade?')) {
+      return;
+    }
+
+    try {
+      await rivalidadeService.finalizar({
+        rivalidadeId: rivalidade.id,
+        usuarioId: userPerfilId,
+      });
+      
+      setMensagemSucesso('Rivalidade finalizada com sucesso!');
+      setTimeout(() => setMensagemSucesso(null), 3000);
+      await carregarRivalidades();
+    } catch (error: any) {
+      console.error('Erro ao finalizar rivalidade:', error);
+      let mensagemErro = 'Erro ao finalizar rivalidade.';
+      if (error.response?.data?.mensagem) {
+        mensagemErro = error.response.data.mensagem;
+      } else if (error.message) {
+        mensagemErro = error.message;
+      }
+      setErroRivalidade(mensagemErro);
+    }
+  };
 
   // Função para adicionar amigo por código
   const handleDuelar = async (amigo: UsuarioResumo) => {
@@ -399,6 +619,288 @@ export function Social() {
               Criar equipe +
             </Button>
           </div>
+
+          {/* Seção Rival - Mostrar quando aba ativa for 'rival' */}
+          {abaAtiva === 'rival' && (
+            <>
+              {carregandoRivalidades ? (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-muted-foreground">Carregando rivalidades...</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : erroRivalidade ? (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-center py-8 text-destructive">
+                      <p>{erroRivalidade}</p>
+                      <Button variant="outline" className="mt-4" onClick={carregarRivalidades}>
+                        Tentar novamente
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Rivalidade Ativa */}
+                  {rivalidadeAtiva && comparacao && (
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle>Rivalidade Ativa</CardTitle>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFinalizarRivalidade(rivalidadeAtiva)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            Finalizar Rivalidade
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {carregandoComparacao ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : (
+                          <div className="space-y-6">
+                            {/* Comparação de Streak */}
+                            <div>
+                              <h3 className="font-semibold mb-3">Streak de Dias</h3>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 rounded-lg border bg-card">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {comparacao.fotoUsuario ? (
+                                      <img 
+                                        src={comparacao.fotoUsuario} 
+                                        alt="Você"
+                                        className="h-8 w-8 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <User className="h-4 w-4 text-primary" />
+                                      </div>
+                                    )}
+                                    <p className="text-sm font-medium">Você</p>
+                                  </div>
+                                  <p className="text-3xl font-bold text-primary">{comparacao.streakUsuario}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">dias consecutivos</p>
+                                </div>
+                                <div className="p-4 rounded-lg border bg-card">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {comparacao.fotoRival ? (
+                                      <img 
+                                        src={comparacao.fotoRival} 
+                                        alt={comparacao.nomeRival}
+                                        className="h-8 w-8 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                                        <User className="h-4 w-4 text-destructive" />
+                                      </div>
+                                    )}
+                                    <p className="text-sm font-medium">{comparacao.nomeRival}</p>
+                                  </div>
+                                  <p className="text-3xl font-bold text-destructive">{comparacao.streakRival}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">dias consecutivos</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Comparação de Treinos na Semana */}
+                            <div>
+                              <h3 className="font-semibold mb-3">Treinos na Semana</h3>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 rounded-lg border bg-card">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {comparacao.fotoUsuario ? (
+                                      <img 
+                                        src={comparacao.fotoUsuario} 
+                                        alt="Você"
+                                        className="h-8 w-8 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <User className="h-4 w-4 text-primary" />
+                                      </div>
+                                    )}
+                                    <p className="text-sm font-medium">Você</p>
+                                  </div>
+                                  <p className="text-3xl font-bold text-primary">{comparacao.treinosSemanaUsuario}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">treinos</p>
+                                </div>
+                                <div className="p-4 rounded-lg border bg-card">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {comparacao.fotoRival ? (
+                                      <img 
+                                        src={comparacao.fotoRival} 
+                                        alt={comparacao.nomeRival}
+                                        className="h-8 w-8 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                                        <User className="h-4 w-4 text-destructive" />
+                                      </div>
+                                    )}
+                                    <p className="text-sm font-medium">{comparacao.nomeRival}</p>
+                                  </div>
+                                  <p className="text-3xl font-bold text-destructive">{comparacao.treinosSemanaRival}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">treinos</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Comparação de Duelos Ganhos */}
+                            <div>
+                              <h3 className="font-semibold mb-3">Duelos Ganhos</h3>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 rounded-lg border bg-card">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {comparacao.fotoUsuario ? (
+                                      <img 
+                                        src={comparacao.fotoUsuario} 
+                                        alt="Você"
+                                        className="h-8 w-8 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <User className="h-4 w-4 text-primary" />
+                                      </div>
+                                    )}
+                                    <p className="text-sm font-medium">Você</p>
+                                  </div>
+                                  <p className="text-3xl font-bold text-primary">{comparacao.duelosGanhosUsuario}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">vitórias</p>
+                                </div>
+                                <div className="p-4 rounded-lg border bg-card">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {comparacao.fotoRival ? (
+                                      <img 
+                                        src={comparacao.fotoRival} 
+                                        alt={comparacao.nomeRival}
+                                        className="h-8 w-8 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                                        <User className="h-4 w-4 text-destructive" />
+                                      </div>
+                                    )}
+                                    <p className="text-sm font-medium">{comparacao.nomeRival}</p>
+                                  </div>
+                                  <p className="text-3xl font-bold text-destructive">{comparacao.duelosGanhosRival}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">vitórias</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Convites Pendentes */}
+                  {rivalidades.filter(r => r.status === 'PENDENTE' && r.perfil2 === userPerfilId).length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Convites Pendentes</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {rivalidades
+                            .filter(r => r.status === 'PENDENTE' && r.perfil2 === userPerfilId)
+                            .map((rivalidade) => (
+                              <div
+                                key={rivalidade.id}
+                                className="flex items-center justify-between p-4 rounded-lg border bg-card"
+                              >
+                                <div>
+                                  <p className="font-medium">Convite de Rivalidade</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Você recebeu um convite de rivalidade
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAceitarConvite(rivalidade)}
+                                  >
+                                    Aceitar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleRecusarConvite(rivalidade)}
+                                  >
+                                    Recusar
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Lista de Amigos para Enviar Convite */}
+                  {!rivalidadeAtiva && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Enviar Convite de Rivalidade</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {amigos.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <p>Você precisa ter amigos para enviar convites de rivalidade.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {amigos.map((amigo) => {
+                              // Verificar se já existe rivalidade ativa com este amigo
+                              // Permitir múltiplos convites pendentes, mas apenas uma rivalidade ativa
+                              const perfilAmigoId = perfisAmigos.get(amigo.usuarioEmail);
+                              const temRivalidadeAtiva = perfilAmigoId && rivalidades.some(r => {
+                                const isParticipante = (r.perfil1 === userPerfilId && r.perfil2 === perfilAmigoId) ||
+                                                      (r.perfil2 === userPerfilId && r.perfil1 === perfilAmigoId);
+                                return isParticipante && r.status === 'ATIVA';
+                              });
+                              
+                              return (
+                                <div
+                                  key={amigo.usuarioEmail}
+                                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                      <User className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div>
+                                      <p className="font-medium">{amigo.nome}</p>
+                                      <p className="text-sm text-muted-foreground">{amigo.usuarioEmail}</p>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleEnviarConvite(amigo)}
+                                    disabled={!!temRivalidadeAtiva}
+                                  >
+                                    {temRivalidadeAtiva ? 'Rivalidade Ativa' : 'Enviar Convite'}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
+            </>
+          )}
 
           {/* Seção Amizades - Mostrar quando aba ativa for 'amizades' */}
           {abaAtiva === 'amizades' && (
@@ -903,6 +1405,66 @@ export function Social() {
                   </>
                 ) : (
                   'Criar Equipe'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Enviar Convite de Rivalidade */}
+      <Dialog 
+        open={modalEnviarConvite} 
+        onOpenChange={(open) => {
+          setModalEnviarConvite(open);
+          if (!open) {
+            setErroRivalidade(null);
+            setAmigoSelecionado(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar Convite de Rivalidade</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            {amigoSelecionado && (
+              <div className="p-4 rounded-lg border bg-card">
+                <p className="font-medium">{amigoSelecionado.nome}</p>
+                <p className="text-sm text-muted-foreground">{amigoSelecionado.usuarioEmail}</p>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Você está prestes a enviar um convite de rivalidade. O seu amigo precisará aceitar para que a rivalidade comece.
+            </p>
+            {erroRivalidade && (
+              <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm">
+                {erroRivalidade}
+              </div>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setModalEnviarConvite(false);
+                  setAmigoSelecionado(null);
+                  setErroRivalidade(null);
+                }}
+                disabled={enviandoConvite}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={confirmarEnviarConvite}
+                disabled={enviandoConvite || !amigoSelecionado}
+              >
+                {enviandoConvite ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  'Enviar Convite'
                 )}
               </Button>
             </div>
