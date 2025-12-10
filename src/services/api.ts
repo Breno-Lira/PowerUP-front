@@ -499,6 +499,11 @@ export const planoTreinoService = {
     return response.data;
   },
 
+  atualizarDias: async (planoTId: number, dias: Dias[]): Promise<PlanoTreinoResumo> => {
+    const response = await api.put<PlanoTreinoResumo>(`/planos-treino/${planoTId}/dias`, { dias });
+    return response.data;
+  },
+
   alterarEstado: async (planoTId: number, estado: EstadoPlano): Promise<PlanoTreinoResumo> => {
     const response = await api.put<PlanoTreinoResumo>(`/planos-treino/${planoTId}/estado`, { estado });
     return response.data;
@@ -506,6 +511,83 @@ export const planoTreinoService = {
 
   excluirPlanoTreino: async (planoTId: number): Promise<void> => {
     await api.delete(`/planos-treino/${planoTId}`);
+  },
+};
+
+// Frequência
+export interface FrequenciaResumo {
+  id: number;
+  perfilId: number;
+  treinoId: number;
+  dataDePresenca: string;
+  planoTreinoId: number | null;
+  foto: string | null;
+}
+
+export interface RegistrarPresencaRequest {
+  perfilId: number;
+  treinoId: number;
+  planoTreinoId: number;
+}
+
+export interface RegistrarPresencaComFotoRequest {
+  perfilId: number;
+  treinoId: number;
+  planoTreinoId: number;
+  fotoBase64: string;
+}
+
+export interface RegistrarPresencaAutomaticaRequest {
+  perfilId: number;
+  usuarioEmail: string;
+}
+
+export interface RegistrarPresencaComFotoAutomaticaRequest {
+  perfilId: number;
+  usuarioEmail: string;
+  fotoBase64: string;
+}
+
+export const frequenciaService = {
+  obterPorId: async (id: number): Promise<FrequenciaResumo> => {
+    const response = await api.get<FrequenciaResumo>(`/frequencias/${id}`);
+    return response.data;
+  },
+
+  listarPorPerfil: async (perfilId: number): Promise<FrequenciaResumo[]> => {
+    const response = await api.get<FrequenciaResumo[]>(`/frequencias/perfil/${perfilId}`);
+    return response.data;
+  },
+
+  registrarPresenca: async (data: RegistrarPresencaRequest): Promise<void> => {
+    await api.post('/frequencias/registrar', data);
+  },
+
+  registrarPresencaAutomatica: async (data: RegistrarPresencaAutomaticaRequest): Promise<void> => {
+    await api.post('/frequencias/registrar-automatico', data);
+  },
+
+  registrarPresencaComFoto: async (data: RegistrarPresencaComFotoRequest): Promise<void> => {
+    await api.post('/frequencias/registrar-com-foto', data);
+  },
+
+  registrarPresencaComFotoAutomatica: async (data: RegistrarPresencaComFotoAutomaticaRequest): Promise<void> => {
+    await api.post('/frequencias/registrar-com-foto-automatico', data);
+  },
+
+  calcularSequenciaDias: async (perfilId: number, planoTreinoId: number): Promise<number> => {
+    const response = await api.get<{ sequencia: number }>(`/frequencias/sequencia/${perfilId}/${planoTreinoId}`);
+    return response.data.sequencia;
+  },
+
+  calcularFrequenciaSemanal: async (perfilId: number, planoTreinoId: number): Promise<number> => {
+    const response = await api.get<{ frequencia: number }>(`/frequencias/semanal/${perfilId}/${planoTreinoId}`);
+    return response.data.frequencia;
+  },
+
+  calcularSequenciaDiasTotal: async (perfilId: number): Promise<number> => {
+    const response = await api.get<{ sequencia: number }>(`/frequencias/sequencia-total/${perfilId}`);
+    return response.data.sequencia;
   },
 };
 

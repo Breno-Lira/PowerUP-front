@@ -22,11 +22,14 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
   planoTreinoService, 
-  exercicioService, 
+  exercicioService,
+  frequenciaService,
+  perfilService,
   PlanoTreinoResumo,
-  TreinoResumo,
   ExercicioResumo,
-  TipoTreino 
+  TipoTreino,
+  FrequenciaResumo,
+  Dias
 } from '@/services/api';
 
 export function Treinos() {
@@ -55,6 +58,15 @@ export function Treinos() {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
+  
+  // Estados para frequência
+  const [perfilId, setPerfilId] = useState<number | null>(null);
+  const [planoTreinoSelecionado, setPlanoTreinoSelecionado] = useState<PlanoTreinoResumo | null>(null);
+  const [sequenciaDias, setSequenciaDias] = useState(0);
+  const [frequenciaSemanal, setFrequenciaSemanal] = useState(0);
+  const [frequencias, setFrequencias] = useState<FrequenciaResumo[]>([]);
+  const [registrandoFrequencia, setRegistrandoFrequencia] = useState(false);
+  const [editandoDias, setEditandoDias] = useState<number | null>(null);
 
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
@@ -66,19 +78,64 @@ export function Treinos() {
     setCarregando(true);
     setErro(null);
     try {
-      const [planos, exerciciosList] = await Promise.all([
+      const [planos, exerciciosList, perfil] = await Promise.all([
         planoTreinoService.listarPorUsuario(userEmail),
         exercicioService.listarTodos(),
+        perfilService.obterPorEmail(userEmail).catch(() => null),
       ]);
       
       setPlanosAtivos(planos.filter(p => p.estado === 'Ativo'));
       setPlanosHistoricos(planos.filter(p => p.estado === 'Historico'));
       setExercicios(exerciciosList);
+      
+      if (perfil) {
+        setPerfilId(perfil.id);
+        // Selecionar o primeiro plano ativo por padrão
+        const primeiroPlanoAtivo = planos.find(p => p.estado === 'Ativo');
+        if (primeiroPlanoAtivo) {
+          setPlanoTreinoSelecionado(primeiroPlanoAtivo);
+        }
+        // Calcular meta semanal como soma de todos os dias de todos os planos ativos
+        const totalDias = planos
+          .filter(p => p.estado === 'Ativo')
+          .reduce((sum, p) => sum + p.dias.length, 0);
+        setMetaSemanal(totalDias);
+      }
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
       setErro('Erro ao carregar dados. Tente novamente.');
     } finally {
       setCarregando(false);
+    }
+  };
+
+  const carregarFrequencias = async () => {
+    if (!perfilId || planosAtivos.length === 0) return;
+    
+    try {
+      const frequenciasList = await frequenciaService.listarPorPerfil(perfilId);
+      
+      // Calcular sequência total considerando todos os planos
+      const sequenciaTotal = await frequenciaService.calcularSequenciaDiasTotal(perfilId);
+      
+      // Calcular frequência semanal de todos os planos ativos
+      const frequenciasSemanais = await Promise.all(
+        planosAtivos.map(plano => 
+          frequenciaService.calcularFrequenciaSemanal(perfilId, plano.id!)
+        )
+      );
+      const frequenciaTotal = frequenciasSemanais.reduce((sum, freq) => sum + freq, 0);
+      
+      // Filtrar frequências do plano selecionado ou todas se não houver seleção
+      const frequenciasFiltradas = planoTreinoSelecionado?.id
+        ? frequenciasList.filter(f => f.planoTreinoId === planoTreinoSelecionado.id)
+        : frequenciasList;
+      
+      setFrequencias(frequenciasFiltradas);
+      setSequenciaDias(sequenciaTotal);
+      setFrequenciaSemanal(frequenciaTotal);
+    } catch (error: any) {
+      console.error('Erro ao carregar frequências:', error);
     }
   };
 
@@ -89,6 +146,20 @@ export function Treinos() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userEmail]);
+
+  // Carregar frequências quando perfilId ou planos ativos mudarem
+  useEffect(() => {
+    if (perfilId && planosAtivos.length > 0) {
+      carregarFrequencias();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfilId, planosAtivos]);
+
+  // Recalcular meta semanal quando planos ativos mudarem
+  useEffect(() => {
+    const totalDias = planosAtivos.reduce((sum, p) => sum + p.dias.length, 0);
+    setMetaSemanal(totalDias);
+  }, [planosAtivos]);
 
   const menuItems = [
     { label: 'Home', path: '/home' },
@@ -228,6 +299,89 @@ export function Treinos() {
       setErro(error.response?.data || error.message || 'Erro ao deletar plano.');
     } finally {
       setCarregando(false);
+    }
+  };
+
+  const handleAtualizarDiasPlano = async (planoId: number, novosDias: Dias[]) => {
+    setCarregando(true);
+    setErro(null);
+    try {
+      await planoTreinoService.atualizarDias(planoId, novosDias);
+      await carregarDados();
+      setMensagemSucesso('Dias da semana atualizados com sucesso!');
+      setEditandoDias(null);
+    } catch (error: any) {
+      console.error('Erro ao atualizar dias:', error);
+      setErro('Erro ao atualizar dias da semana.');
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const handleRegistrarFrequencia = async (comFoto: boolean = false) => {
+    if (!perfilId || !userEmail) {
+      setErro('Dados do usuário não encontrados.');
+      return;
+    }
+
+    setRegistrandoFrequencia(true);
+    setErro(null);
+
+    try {
+      if (comFoto) {
+        // Criar input de arquivo temporário
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (!file) {
+            setRegistrandoFrequencia(false);
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            const base64 = reader.result as string;
+            const base64Data = base64.split(',')[1]; // Remove o prefixo data:image/...
+
+            try {
+              await frequenciaService.registrarPresencaComFotoAutomatica({
+                perfilId,
+                usuarioEmail: userEmail,
+                fotoBase64: base64Data,
+              });
+              setMensagemSucesso('Frequência registrada com foto com sucesso!');
+              await carregarFrequencias();
+              await carregarDados(); // Recarregar para atualizar os planos
+            } catch (error: any) {
+              console.error('Erro ao registrar frequência com foto:', error);
+              const mensagemErro = error.response?.data?.mensagem || error.message || 'Erro ao registrar frequência com foto.';
+              setErro(mensagemErro);
+              setTimeout(() => setErro(null), 5000);
+            } finally {
+              setRegistrandoFrequencia(false);
+            }
+          };
+          reader.readAsDataURL(file);
+        };
+        input.click();
+      } else {
+        await frequenciaService.registrarPresencaAutomatica({
+          perfilId,
+          usuarioEmail: userEmail,
+        });
+        setMensagemSucesso('Frequência registrada com sucesso!');
+        await carregarFrequencias();
+        await carregarDados(); // Recarregar para atualizar os planos
+      }
+    } catch (error: any) {
+      console.error('Erro ao registrar frequência:', error);
+      const mensagemErro = error.response?.data?.mensagem || error.message || 'Erro ao registrar frequência. Tente novamente.';
+      setErro(mensagemErro);
+      setTimeout(() => setErro(null), 5000);
+    } finally {
+      setRegistrandoFrequencia(false);
     }
   };
 
@@ -671,114 +825,264 @@ export function Treinos() {
 
           <TabsContent value="frequencia" className="mt-6">
             <div className="space-y-6">
-              {/* Card Sequência Ativa */}
-              <Card>
-                <CardContent className="pt-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Sequência Ativa</p>
-                    <p className="text-2xl font-bold">6 dias consecutivos</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Cards Esta Semana e Meta Semanal */}
-              <div className="grid grid-cols-2 gap-4">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Esta Semana</p>
-                      <p className="text-2xl font-bold">6/7 treinos</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Meta Semanal</p>
-                        <p className="text-2xl font-bold">{metaSemanal} treinos</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          // TODO: Implementar edição de meta
-                          const novaMeta = prompt('Nova meta semanal:', metaSemanal.toString());
-                          if (novaMeta && !isNaN(parseInt(novaMeta))) {
-                            setMetaSemanal(parseInt(novaMeta));
-                          }
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Card Check-in Diário */}
-              {mostrarCheckin && (
+              {/* Seleção de Plano de Treino */}
+              {planosAtivos.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">Fazer check-in diário</CardTitle>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setMostrarCheckin(false)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <CardTitle className="text-base">Planos de Treino</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Button className="w-full" variant="outline">
-                      <Camera className="h-4 w-4 mr-2" />
-                      Tirar foto
-                    </Button>
+                    <div className="space-y-4">
+                      {planosAtivos.map((plano) => (
+                        <div key={plano.id} className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant={planoTreinoSelecionado?.id === plano.id ? 'default' : 'outline'}
+                              className="flex-1 justify-start"
+                              onClick={() => {
+                                setPlanoTreinoSelecionado(plano);
+                              }}
+                            >
+                              <div className="flex flex-col items-start w-full">
+                                <span>{plano.nome}</span>
+                                {plano.dias.length > 0 ? (
+                                  <span className="text-xs font-normal opacity-90 mt-0.5">
+                                    {plano.dias.map((dia, idx) => {
+                                      const nomesCompletos: Record<Dias, string> = {
+                                        Segunda: 'Segunda',
+                                        Terca: 'Terça',
+                                        Quarta: 'Quarta',
+                                        Quinta: 'Quinta',
+                                        Sexta: 'Sexta',
+                                        Sabado: 'Sábado',
+                                        Domingo: 'Domingo'
+                                      };
+                                      return (
+                                        <span key={idx}>
+                                          {nomesCompletos[dia]}
+                                          {idx < plano.dias.length - 1 ? ', ' : ''}
+                                        </span>
+                                      );
+                                    })}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-normal opacity-70 mt-0.5">
+                                    Nenhum dia configurado
+                                  </span>
+                                )}
+                              </div>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditandoDias(editandoDias === plano.id ? null : plano.id || 0);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          {editandoDias === plano.id && (
+                            <div className="p-4 border rounded-lg bg-muted/50">
+                              <p className="text-sm font-medium mb-3">Selecione os dias da semana:</p>
+                              <div className="grid grid-cols-7 gap-2">
+                                {(['Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado', 'Domingo'] as Dias[]).map((dia) => {
+                                  const isSelected = plano.dias.includes(dia);
+                                  return (
+                                    <button
+                                      key={dia}
+                                      type="button"
+                                      onClick={() => {
+                                        const novosDias = isSelected
+                                          ? plano.dias.filter(d => d !== dia)
+                                          : [...plano.dias, dia];
+                                        handleAtualizarDiasPlano(plano.id!, novosDias);
+                                      }}
+                                      className={`p-2 rounded-md text-sm font-medium transition-colors ${
+                                        isSelected
+                                          ? 'bg-primary text-primary-foreground'
+                                          : 'bg-background border hover:bg-accent'
+                                      }`}
+                                    >
+                                      {dia.substring(0, 3)}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Grid de Dias da Semana */}
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-7 gap-2">
-                    {[
-                      { dia: 'D', data: 5, completo: true },
-                      { dia: 'S', data: 6, completo: true },
-                      { dia: 'T', data: 7, completo: true },
-                      { dia: 'Q', data: 8, completo: true },
-                      { dia: 'Q', data: 9, completo: true },
-                      { dia: 'S', data: 10, completo: false },
-                      { dia: 'S', data: 11, completo: false },
-                    ].map((item, index) => (
-                      <div
-                        key={index}
-                        className={`aspect-square rounded-lg border-2 flex flex-col items-center justify-center ${
-                          item.completo
-                            ? 'bg-green-500 border-green-700 text-white'
-                            : 'bg-gray-200 border-gray-400 text-gray-600'
-                        }`}
-                      >
-                        <span className="text-xs font-medium">{item.dia}</span>
-                        <span className="text-sm font-bold">{item.data}</span>
+              {!planoTreinoSelecionado && planosAtivos.length === 0 && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-center text-muted-foreground">
+                      Crie um plano de treino primeiro para registrar frequências.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Card Dias Consecutivos */}
+              {planosAtivos.length > 0 && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Dias Consecutivos</p>
+                      <p className="text-2xl font-bold">{sequenciaDias} {sequenciaDias === 1 ? 'dia' : 'dias'} consecutivos</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Considerando todos os planos de treino
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Cards Esta Semana e Meta Semanal */}
+              {planosAtivos.length > 0 && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Esta Semana</p>
+                        <p className="text-2xl font-bold">{frequenciaSemanal}/{metaSemanal} treinos</p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Meta Semanal</p>
+                        <p className="text-2xl font-bold">{metaSemanal} treinos</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Soma de todos os planos ativos
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Card Check-in Diário */}
+              {planosAtivos.length > 0 && mostrarCheckin && (
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base">Fazer check-in diário</CardTitle>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setMostrarCheckin(false)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <Button 
+                          className="w-full" 
+                          variant="default"
+                          onClick={() => handleRegistrarFrequencia(false)}
+                          disabled={registrandoFrequencia}
+                        >
+                          {registrandoFrequencia ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Registrando...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="h-4 w-4 mr-2" />
+                              Registrar presença
+                            </>
+                          )}
+                        </Button>
+                        <Button 
+                          className="w-full" 
+                          variant="outline"
+                          onClick={() => handleRegistrarFrequencia(true)}
+                          disabled={registrandoFrequencia}
+                        >
+                          <Camera className="h-4 w-4 mr-2" />
+                          Registrar com foto
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+              {/* Grid de Dias da Semana */}
+              {planosAtivos.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Dias da Semana</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-7 gap-2">
+                      {(() => {
+                        const hoje = new Date();
+                        const diasSemana = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+                        // Buscar todas as frequências de todos os planos ativos
+                        const todasFrequencias = frequencias.filter(f => 
+                          planosAtivos.some(p => p.id === f.planoTreinoId)
+                        );
+                        const diasCompletos = todasFrequencias.map(f => {
+                          const data = new Date(f.dataDePresenca);
+                          return data.toDateString();
+                        });
+
+                        // Gerar os últimos 7 dias
+                        const ultimos7Dias = Array.from({ length: 7 }, (_, i) => {
+                          const data = new Date(hoje);
+                          data.setDate(data.getDate() - (6 - i));
+                          return {
+                            dia: diasSemana[data.getDay()],
+                            data: data.getDate(),
+                            completo: diasCompletos.includes(data.toDateString()),
+                            dataObj: data,
+                          };
+                        });
+
+                        return ultimos7Dias.map((item, index) => (
+                          <div
+                            key={index}
+                            className={`aspect-square rounded-lg border-2 flex flex-col items-center justify-center ${
+                              item.completo
+                                ? 'bg-green-500 border-green-700 text-white'
+                                : 'bg-gray-200 border-gray-400 text-gray-600'
+                            }`}
+                          >
+                            <span className="text-xs font-medium">{item.dia}</span>
+                            <span className="text-sm font-bold">{item.data}</span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Mensagem Motivacional */}
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="pt-6">
-                  <p className="text-center text-sm">
-                    Continue Assim! Você está mantendo uma sequência incrível. Não quebre agora!
-                  </p>
-                </CardContent>
-              </Card>
+              {planosAtivos.length > 0 && sequenciaDias > 0 && (
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="pt-6">
+                    <p className="text-center text-sm">
+                      {sequenciaDias >= 7 
+                        ? 'Incrível! Você está mantendo uma sequência excelente! Continue assim!'
+                        : sequenciaDias >= 3
+                        ? 'Ótimo trabalho! Continue mantendo essa sequência!'
+                        : 'Bom começo! Continue registrando seus treinos!'
+                      }
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
         </Tabs>
