@@ -362,6 +362,7 @@ export interface PerfilResumo {
   foto: string | null;
   estado: boolean;
   criacao: string;
+  conquistasSelecionadas: string | null;
 }
 
 export const perfilService = {
@@ -388,6 +389,69 @@ export const perfilService = {
       }
       throw error;
     }
+  },
+
+  atualizar: async (id: number, data: { username?: string; foto?: string | null; conquistasSelecionadas?: string | null }): Promise<PerfilResumo> => {
+    try {
+      const response = await api.put<PerfilResumo>(`/perfis/${id}`, data);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error('Perfil não encontrado');
+      }
+      throw error;
+    }
+  },
+};
+
+// Conquista
+export interface ConquistaResumo {
+  id: number;
+  exercicioId: number;
+  treinoId: number;
+  nome: string;
+  descricao: string;
+  concluida: boolean;
+  badgeAtual: string | null;
+}
+
+export const conquistaService = {
+  listarTodas: async (): Promise<ConquistaResumo[]> => {
+    const response = await api.get<ConquistaResumo[]>('/conquistas');
+    return response.data;
+  },
+
+  listarPorPerfil: async (perfilId: number): Promise<ConquistaResumo[]> => {
+    const response = await api.get<ConquistaResumo[]>(`/conquistas/perfil/${perfilId}`);
+    return response.data;
+  },
+};
+
+// Avatar
+export interface AvatarResumo {
+  id: number;
+  perfilId: number;
+  nivel: number;
+  experiencia: number;
+  forca: number;
+  dinheiro: number;
+}
+
+export interface AtributosCalculados {
+  forca: number;
+  resistencia: number;
+  agilidade: number;
+}
+
+export const avatarService = {
+  obterPorPerfilId: async (perfilId: number): Promise<AvatarResumo> => {
+    const response = await api.get<AvatarResumo>(`/avatars/perfil/${perfilId}`);
+    return response.data;
+  },
+
+  obterAtributos: async (avatarId: number): Promise<AtributosCalculados> => {
+    const response = await api.get<AtributosCalculados>(`/avatars/${avatarId}/atributos`);
+    return response.data;
   },
 };
 
