@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,43 +11,39 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { feedbackService, ClassificacaoFeedback } from '@/services/api';
 
 interface Feedback {
   id: number;
-  tipoTreino: string;
+  frequencia: number;
+  classificacao: ClassificacaoFeedback;
+  feedback: string;
+  email: string;
   data: string;
-  sensacao: 'excelente' | 'cansado' | 'com-dor' | 'bom' | 'ruim';
-  descricao: string;
 }
 
 export function Feedback() {
   const navigate = useNavigate();
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([
-    {
-      id: 1,
-      tipoTreino: 'Peito e Tríceps',
-      data: '08 de Outubro de 2025',
-      sensacao: 'excelente',
-      descricao:
-        'Treino muito pegado hoje! Aumentei minha carga no supino com halteres e tríceps testa! Alcancei a essência',
-    },
-    {
-      id: 2,
-      tipoTreino: 'Perna',
-      data: '10 de Outubro de 2025',
-      sensacao: 'cansado',
-      descricao:
-        'Treino foi bom mas saí muito cansado da academia, provavelmente foi porque eu não treinava há duas semanas',
-    },
-    {
-      id: 3,
-      tipoTreino: 'Ombro',
-      data: '11 de Outubro de 2025',
-      sensacao: 'com-dor',
-      descricao:
-        'Treino hoje foi estranho, senti uma dor fina no ombro direito acho que tenho aquecer mais o manguito',
-    },
-  ]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showDialog, setShowDialog] = useState(false);
+  const [feedbackEditando, setFeedbackEditando] = useState<Feedback | null>(null);
+  const [novaClassificacao, setNovaClassificacao] = useState<ClassificacaoFeedback>('Bom');
+  const [novaDescricao, setNovaDescricao] = useState('');
+
+  // Obter email do usuário do localStorage
+  const userEmail = JSON.parse(localStorage.getItem('user') || '{}')?.email;
 
   const menuItems = [
     { label: 'Home', path: '/home' },
@@ -60,42 +56,126 @@ export function Feedback() {
     { label: 'Social', path: '/social' },
   ];
 
-  const getSensacaoLabel = (sensacao: Feedback['sensacao']) => {
-    const labels: Record<Feedback['sensacao'], string> = {
-      excelente: 'Excelente',
-      cansado: 'Cansado',
-      'com-dor': 'Com dor',
-      bom: 'Bom',
-      ruim: 'Ruim',
-    };
-    return labels[sensacao];
+  useEffect(() => {
+    carregarFeedbacks();
+  }, []);
+
+  const carregarFeedbacks = async () => {
+    if (!userEmail) {
+      setError('Usuário não autenticado');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const dados = await feedbackService.listarPorUsuario(userEmail);
+      setFeedbacks(dados);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar feedbacks');
+      console.error('Erro ao carregar feedbacks:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getSensacaoVariant = (sensacao: Feedback['sensacao']) => {
-    const variants: Record<Feedback['sensacao'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      excelente: 'default',
-      cansado: 'secondary',
-      'com-dor': 'destructive',
-      bom: 'default',
-      ruim: 'destructive',
+  const formatarData = (dataString: string) => {
+    try {
+      const data = new Date(dataString);
+      return data.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return dataString;
+    }
+  };
+
+  const getSensacaoLabel = (sensacao: ClassificacaoFeedback) => {
+    const labels: Record<ClassificacaoFeedback, string> = {
+      Excelente: 'Excelente',
+      Cansado: 'Cansado',
+      ComDor: 'Com dor',
+      Bom: 'Bom',
     };
-    return variants[sensacao];
+    return labels[sensacao] || sensacao;
+  };
+
+  const getSensacaoVariant = (sensacao: ClassificacaoFeedback) => {
+    const variants: Record<ClassificacaoFeedback, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      Excelente: 'default',
+      Cansado: 'secondary',
+      ComDor: 'destructive',
+      Bom: 'default',
+    };
+    return variants[sensacao] || 'default';
   };
 
   const handleNovoFeedback = () => {
-    // TODO: Implementar criação de novo feedback
-    console.log('Novo feedback');
+    setFeedbackEditando(null);
+    setNovaClassificacao('Bom');
+    setNovaDescricao('');
+    setShowDialog(true);
   };
 
-  const handleEditar = (id: number) => {
-    // TODO: Implementar edição
-    console.log('Editar feedback:', id);
+  const handleEditar = (feedback: Feedback) => {
+    setFeedbackEditando(feedback);
+    setNovaClassificacao(feedback.classificacao);
+    setNovaDescricao(feedback.feedback);
+    setShowDialog(true);
   };
 
-  const handleDeletar = (id: number) => {
-    // TODO: Implementar deleção
-    setFeedbacks((prev) => prev.filter((f) => f.id !== id));
-    console.log('Deletar feedback:', id);
+  const handleSalvar = async () => {
+    if (!userEmail) {
+      setError('Usuário não autenticado');
+      return;
+    }
+
+    if (!novaDescricao.trim()) {
+      setError('A descrição é obrigatória');
+      return;
+    }
+
+    try {
+      setError('');
+      if (feedbackEditando) {
+        // Modificar feedback existente
+        await feedbackService.modificar(feedbackEditando.id, {
+          classificacao: novaClassificacao,
+          descricao: novaDescricao,
+        });
+      } else {
+        // Criar novo feedback
+        await feedbackService.criar({
+          frequenciaId: 1, // Valor padrão, será gerado automaticamente pelo backend
+          email: userEmail,
+          classificacao: novaClassificacao,
+          descricao: novaDescricao,
+        });
+      }
+      setShowDialog(false);
+      await carregarFeedbacks();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao salvar feedback');
+      console.error('Erro ao salvar feedback:', err);
+    }
+  };
+
+  const handleDeletar = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir este feedback?')) {
+      return;
+    }
+
+    try {
+      setError('');
+      await feedbackService.excluir(id);
+      await carregarFeedbacks();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao excluir feedback');
+      console.error('Erro ao excluir feedback:', err);
+    }
   };
 
   return (
@@ -139,6 +219,13 @@ export function Feedback() {
           <p className="text-muted-foreground">Registre sua sensação pós-treino!</p>
         </div>
 
+        {/* Mensagem de Erro */}
+        {error && (
+          <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
+
         {/* Botão Novo Feedback */}
         <Button className="w-full" size="lg" onClick={handleNovoFeedback}>
           <Plus className="h-5 w-5 mr-2" />
@@ -148,49 +235,105 @@ export function Feedback() {
         {/* Histórico de Feedbacks */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Histórico de Feedbacks</h2>
-          <div className="space-y-4">
-            {feedbacks.map((feedback) => (
-              <Card key={feedback.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <CardTitle className="text-lg">{feedback.tipoTreino}</CardTitle>
-                        <Badge variant={getSensacaoVariant(feedback.sensacao)}>
-                          {getSensacaoLabel(feedback.sensacao)}
-                        </Badge>
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+          ) : feedbacks.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum feedback registrado ainda.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {feedbacks.map((feedback) => (
+                <Card key={feedback.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <Badge variant={getSensacaoVariant(feedback.classificacao)}>
+                            {getSensacaoLabel(feedback.classificacao)}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {formatarData(feedback.data)}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">{feedback.data}</p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDeletar(feedback.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEditar(feedback)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleDeletar(feedback.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleEditar(feedback.id)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm leading-relaxed">{feedback.descricao}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm leading-relaxed">{feedback.feedback}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Dialog para Criar/Editar Feedback */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {feedbackEditando ? 'Editar Feedback' : 'Novo Feedback'}
+            </DialogTitle>
+            <DialogDescription>
+              {feedbackEditando
+                ? 'Atualize as informações do seu feedback de treino.'
+                : 'Registre sua sensação após o treino.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="classificacao">Sensação</Label>
+              <select
+                id="classificacao"
+                value={novaClassificacao}
+                onChange={(e) => setNovaClassificacao(e.target.value as ClassificacaoFeedback)}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+              >
+                <option value="Excelente">Excelente</option>
+                <option value="Bom">Bom</option>
+                <option value="Cansado">Cansado</option>
+                <option value="ComDor">Com dor</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="descricao">Descrição</Label>
+              <Textarea
+                id="descricao"
+                placeholder="Descreva como foi seu treino..."
+                value={novaDescricao}
+                onChange={(e) => setNovaDescricao(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSalvar}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
