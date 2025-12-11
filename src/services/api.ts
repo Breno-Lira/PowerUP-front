@@ -453,6 +453,58 @@ export const conquistaService = {
   },
 };
 
+// Meta
+export interface MetaResumo {
+  id: number;
+  exercicioId: number | null;
+  treinoId: number | null;
+  nome: string;
+  dataFim: string;
+  dataInicio: string;
+  exigenciaMinima: number | null;
+  concluida: boolean;
+}
+
+export interface CriarMetaRequest {
+  exercicioId?: number | null;
+  treinoId?: number | null;
+  nome: string;
+  dataInicio: string;
+  dataFim: string;
+  exigenciaMinima?: number | null;
+}
+
+export const metaService = {
+  obterPorId: async (id: number): Promise<MetaResumo> => {
+    const response = await api.get<MetaResumo>(`/metas/${id}`);
+    return response.data;
+  },
+
+  obterPorUsuario: async (userId: number): Promise<MetaResumo[]> => {
+    const response = await api.get<MetaResumo[]>(`/metas/usuario/${userId}`);
+    return response.data;
+  },
+
+  criar: async (meta: CriarMetaRequest): Promise<MetaResumo> => {
+    const response = await api.post<MetaResumo>('/metas', meta);
+    return response.data;
+  },
+
+  atualizar: async (id: number, meta: Partial<CriarMetaRequest>): Promise<MetaResumo> => {
+    const response = await api.put<MetaResumo>(`/metas/${id}`, meta);
+    return response.data;
+  },
+
+  deletar: async (id: number): Promise<void> => {
+    await api.delete(`/metas/${id}`);
+  },
+
+  podeColetarRecompensas: async (metaId: number): Promise<boolean> => {
+    const response = await api.get<boolean>(`/metas/${metaId}/pode-coletar-recompensas`);
+    return response.data;
+  },
+};
+
 // Avatar
 export interface AcessorioResumo {
   id: number;

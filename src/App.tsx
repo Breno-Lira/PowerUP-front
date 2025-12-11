@@ -12,6 +12,7 @@ import { Social } from './pages/Social';
 import { Grupo } from './pages/Grupo';
 import { Equipe } from './pages/Equipe';
 import { ArenaDuelos } from './pages/ArenaDuelos';
+import { Meta } from './pages/Meta';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const user = localStorage.getItem('user');
@@ -109,6 +110,14 @@ function App() {
           element={
             <PrivateRoute>
               <ArenaDuelos />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/meta"
+          element={
+            <PrivateRoute>
+              <Meta />
             </PrivateRoute>
           }
         />

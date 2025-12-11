@@ -121,6 +121,7 @@ export function Nutricao() {
     { label: 'Perfil', path: '/perfil' },
     { label: 'Social', path: '/social' },
     { label: 'Arena Duelos', path: '/arena-duelos' },
+    { label: 'Meta', path: '/meta' },
   ];
 
   useEffect(() => {

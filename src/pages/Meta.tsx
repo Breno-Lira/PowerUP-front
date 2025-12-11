@@ -308,7 +308,12 @@ export function Meta() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Target className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Metas</h1>
+            <div>
+              <h1 className="text-3xl font-bold">Metas</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {metas.filter(m => m.concluida).length} de {metas.length} metas concluídas
+              </p>
+            </div>
           </div>
           <Button onClick={abrirModalNovo} className="gap-2">
             <Plus className="h-4 w-4" />
@@ -320,6 +325,33 @@ export function Meta() {
           <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-md">
             {erro}
           </div>
+        )}
+
+        {/* Card de Estatísticas */}
+        {metas.length > 0 && (
+          <Card className="mb-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-full bg-primary/20">
+                    <Target className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Metas Concluídas</p>
+                    <p className="text-2xl font-bold">
+                      {metas.filter(m => m.concluida).length} <span className="text-lg font-normal text-muted-foreground">/ {metas.length}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Taxa de Conclusão</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {metas.length > 0 ? Math.round((metas.filter(m => m.concluida).length / metas.length) * 100) : 0}%
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {carregando && !metas.length ? (
