@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { equipeService, EquipeResumo, usuarioService, UsuarioResumo, MembroRanking } from '@/services/api';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 
 export function Equipe() {
   const navigate = useNavigate();
@@ -378,6 +379,9 @@ export function Equipe() {
               </div>
             </SheetContent>
           </Sheet>
+          <div className="ml-auto hidden sm:block">
+            <UserInfoHeader variant="inline" />
+          </div>
         </div>
       </div>
 

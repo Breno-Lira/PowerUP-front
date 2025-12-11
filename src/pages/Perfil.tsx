@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -406,6 +407,9 @@ export function Perfil() {
               </div>
             </SheetContent>
           </Sheet>
+          <div className="ml-auto hidden sm:block">
+            <UserInfoHeader variant="inline" />
+          </div>
         </div>
       </div>
 

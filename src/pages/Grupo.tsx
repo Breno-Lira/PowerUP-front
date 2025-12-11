@@ -12,6 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 
 interface Membro {
   id: number;
@@ -167,6 +168,9 @@ export function Grupo() {
               </div>
             </SheetContent>
           </Sheet>
+          <div className="ml-auto hidden sm:block">
+            <UserInfoHeader variant="inline" />
+          </div>
         </div>
       </div>
 
@@ -174,12 +178,22 @@ export function Grupo() {
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         <div className="space-y-6">
           {/* Header da Página */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Teams</h1>
-              <p className="text-muted-foreground mt-1">
-                Join forces with friends and compete together
-              </p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => navigate('/social')}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold">Teams</h1>
+                <p className="text-muted-foreground mt-1">
+                  Join forces with friends and compete together
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline">Join Team</Button>

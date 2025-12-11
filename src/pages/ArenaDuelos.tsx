@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 import {
   Dialog,
   DialogContent,
@@ -139,11 +140,15 @@ export function ArenaDuelos() {
               </div>
             </SheetContent>
           </Sheet>
+          <div className="ml-auto hidden sm:block">
+            <UserInfoHeader variant="inline" />
+          </div>
         </div>
       </div>
 
       {/* Conteúdo Principal */}
       <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <UserInfoHeader className="mb-4" />
         <div className="space-y-6">
           {/* Header da Página */}
           <div>

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -23,11 +24,16 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold">PowerUP</h1>
-          <Button onClick={handleLogout} variant="outline">
+        <div className="flex items-center mb-6">
+          <div className="flex-1">
+            <UserInfoHeader variant="inline" />
+          </div>
+          <Button onClick={handleLogout} variant="outline" className="ml-4">
             Sair
           </Button>
+        </div>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold">PowerUP</h1>
         </div>
         <Card>
           <CardHeader>

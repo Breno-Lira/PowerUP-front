@@ -12,6 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 import { usuarioService, UsuarioResumo, dueloService, perfilService, DueloResumo, AtributosCalculados, equipeService, EquipeResumo, CriarEquipeRequest, rivalidadeService, RivalidadeResumo, ComparacaoRivalidade, frequenciaService, planoTreinoService } from '@/services/api';
 import { Sword, UserMinus } from 'lucide-react';
 import {
@@ -663,6 +664,9 @@ export function Social() {
               </div>
             </SheetContent>
           </Sheet>
+          <div className="ml-auto hidden sm:block">
+            <UserInfoHeader variant="inline" />
+          </div>
         </div>
       </div>
 

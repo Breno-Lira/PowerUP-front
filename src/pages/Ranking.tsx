@@ -12,6 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 import {
   perfilService,
   PerfilResumo,
@@ -295,6 +296,9 @@ export function Ranking() {
               </div>
             </SheetContent>
           </Sheet>
+            <div className="ml-auto hidden sm:block">
+              <UserInfoHeader variant="inline" />
+            </div>
         </div>
       </div>
 

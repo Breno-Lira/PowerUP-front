@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/sheet';
 import { avatarService, AvatarResumo, lojaService, ItemLojaResumo, perfilService, PerfilResumo } from '@/services/api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 
 interface FiltroItem {
   id: string;
@@ -296,7 +297,7 @@ export function Loja() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header com Menu */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-3 flex items-center gap-3">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -358,17 +359,8 @@ export function Loja() {
             </SheetContent>
           </Sheet>
 
-          {/* Título Loja no centro */}
-          <h1 className="text-2xl font-bold absolute left-1/2 transform -translate-x-1/2">
-            Loja
-          </h1>
-
-          {/* Botão Inventário e Cofre */}
-          <div className="flex flex-col items-end gap-1">
-            <Button variant="outline" size="sm" onClick={handleInventario}>
-              inventario
-            </Button>
-            <p className="text-sm font-medium">Cofre : {cofre} $</p>
+          <div className="ml-auto hidden sm:block">
+            <UserInfoHeader variant="inline" />
           </div>
         </div>
       </div>
@@ -439,6 +431,20 @@ export function Loja() {
 
       {/* Conteúdo Principal */}
       <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div>
+            <h1 className="text-2xl font-bold">Loja</h1>
+            <p className="text-muted-foreground text-sm">Compre itens e personalize seu avatar</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end">
+              <Button variant="outline" size="sm" onClick={handleInventario}>
+                Inventário
+              </Button>
+              <p className="text-sm font-medium">Cofre: {cofre} $</p>
+            </div>
+          </div>
+        </div>
         <div className="flex gap-6">
           {/* Sidebar de Filtros */}
           <div className="w-64 flex-shrink-0">

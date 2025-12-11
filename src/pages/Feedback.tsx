@@ -23,6 +23,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { feedbackService, perfilService, ClassificacaoFeedback, PerfilResumo } from '@/services/api';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 
 interface Feedback {
   id: number;
@@ -253,6 +254,9 @@ export function Feedback() {
               </div>
             </SheetContent>
           </Sheet>
+          <div className="ml-auto hidden sm:block">
+            <UserInfoHeader variant="inline" />
+          </div>
         </div>
       </div>
 

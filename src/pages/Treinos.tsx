@@ -33,6 +33,7 @@ import {
   PerfilResumo
 } from '@/services/api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserInfoHeader } from '@/components/UserInfoHeader';
 
 export function Treinos() {
   const navigate = useNavigate();
@@ -505,34 +506,38 @@ export function Treinos() {
             </SheetContent>
           </Sheet>
 
-          {/* Navegação Principal */}
+          <div className="ml-auto hidden sm:block">
+            <UserInfoHeader variant="inline" />
+          </div>
+        </div>
+      </div>
+
+      {/* Conteúdo Principal */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-4">
           <Tabs value={abaPrincipal} onValueChange={setAbaPrincipal} className="flex-1">
-            <TabsList className="bg-transparent h-auto p-0">
+            <TabsList className="bg-background shadow-sm rounded-md">
               <TabsTrigger
                 value="treino"
-                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md px-4 py-2"
+                className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary px-4 py-2 rounded-md"
               >
                 Treino
               </TabsTrigger>
               <TabsTrigger
                 value="progresso"
-                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md px-4 py-2"
+                className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary px-4 py-2 rounded-md"
               >
                 Progresso
               </TabsTrigger>
               <TabsTrigger
                 value="frequencia"
-                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md px-4 py-2"
+                className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary px-4 py-2 rounded-md"
               >
                 Frequência
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
-      </div>
-
-      {/* Conteúdo Principal */}
-      <div className="container mx-auto px-4 py-6">
         {/* Mensagens de Sucesso e Erro */}
         {mensagemSucesso && (
           <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-800 text-sm flex items-center justify-between">

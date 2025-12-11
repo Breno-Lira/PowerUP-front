@@ -12,7 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { perfilService, PerfilResumo } from '@/services/api';
+import { perfilService, PerfilResumo, avatarService, AvatarResumo } from '@/services/api';
 
 interface HomeData {
   xpAtual: number;
@@ -29,36 +29,51 @@ export function Home() {
   const [home, setHome] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [perfil, setPerfil] = useState<PerfilResumo | null>(null);
+  const [avatar, setAvatar] = useState<AvatarResumo | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
   
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData.email;
 
   useEffect(() => {
-    // Carregar perfil para obter foto
-    if (userData.perfilId) {
-      perfilService.obterPorId(userData.perfilId)
-        .then(setPerfil)
-        .catch(console.error);
-    }
+    const carregarDados = async () => {
+      if (!userData.perfilId || !userEmail) {
+        setErro('Usuário não identificado. Faça login novamente.');
+        setLoading(false);
+        return;
+      }
 
-    // Dados mockados baseados no wireframe
-    const dadosMock: HomeData = {
-      xpAtual: 750,
-      xpMaximo: 1000,
-      treinosCompletos: 5,
-      treinosTotal: 5,
-      rank: 'Lobo',
-      atributo1: 80,
-      atributo2: 65,
+      try {
+        // Perfil (nome/foto) e Avatar (nível/XP)
+        const [perfilResp, avatarResp] = await Promise.all([
+          perfilService.obterPorId(userData.perfilId),
+          avatarService.obterPorPerfilId(userData.perfilId),
+        ]);
+
+        setPerfil(perfilResp);
+        setAvatar(avatarResp);
+
+        // Monta dados básicos para cards/progresso
+        setHome({
+          xpAtual: avatarResp.experiencia ?? 0,
+          xpMaximo: 100, // Cada nível exige 100 XP; total é calculado abaixo
+          treinosCompletos: 0,
+          treinosTotal: 0,
+          rank: '—',
+          atributo1: 0,
+          atributo2: 0,
+        });
+      } catch (e: any) {
+        console.error(e);
+        setErro(e.message || 'Não foi possível carregar os dados do usuário.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // Simular carregamento
-    setTimeout(() => {
-      setHome(dadosMock);
-      setLoading(false);
-    }, 500);
-  }, []);
+    carregarDados();
+  }, [userData.perfilId, userEmail]);
 
   if (loading) {
     return (
@@ -71,11 +86,25 @@ export function Home() {
     );
   }
 
+  if (erro) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="bg-white shadow-md rounded-lg p-6 max-w-md text-center space-y-3">
+          <p className="text-lg font-semibold">Ops!</p>
+          <p className="text-sm text-muted-foreground">{erro}</p>
+          <Button onClick={() => navigate('/login')} className="w-full">
+            Ir para login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!home) {
     return null;
   }
 
-  const xpPercentual = (home.xpAtual / home.xpMaximo) * 100;
+  const xpTotal = avatar ? (avatar.nivel - 1) * 100 + avatar.experiencia : home.xpAtual;
 
   const menuItems = [
     { label: 'Home', path: '/home' },
@@ -155,16 +184,22 @@ export function Home() {
             </SheetContent>
           </Sheet>
 
-          {/* XP no topo direito */}
+          {/* Dados do usuário + XP */}
           <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-sm font-medium">XP</div>
-              <div className="text-xs text-muted-foreground">
-                {home.xpAtual}/{home.xpMaximo}
-              </div>
-            </div>
-            <div className="w-24">
-              <Progress value={xpPercentual} className="h-2" />
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={perfil?.foto || undefined} alt={perfil?.username || 'Usuário'} />
+              <AvatarFallback className="bg-primary/10">
+                <User className="h-5 w-5 text-primary" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="leading-tight">
+              <p className="font-semibold text-sm truncate">{perfil?.username || userData.username || 'Usuário'}</p>
+              <p className="text-xs text-muted-foreground truncate">{userEmail || 'email@exemplo.com'}</p>
+              <p className="text-xs text-muted-foreground flex gap-2">
+                <span>Nível {avatar?.nivel ?? 1}</span>
+                <span>·</span>
+                <span>{xpTotal.toLocaleString('pt-BR')} XP</span>
+              </p>
             </div>
           </div>
         </div>
