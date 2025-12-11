@@ -41,6 +41,7 @@ export function ArenaDuelos() {
   const [carregandoAmigos, setCarregandoAmigos] = useState(false);
   const [perfilAmigoPorEmail, setPerfilAmigoPorEmail] = useState<Record<string, number>>({});
   const [avatarUsuarioId, setAvatarUsuarioId] = useState<number | null>(null);
+  const [carregandoNomes, setCarregandoNomes] = useState(false);
 
   const oponenteAtual = 'Jogador n1';
 
@@ -110,26 +111,27 @@ export function ArenaDuelos() {
   }, [perfilId]);
 
   const resolverNomes = async (duelos: DueloResumo[]) => {
+    setCarregandoNomes(true);
     const novosPerfis: Record<number, string> = {};
     const novosAvatares: Record<number, string> = {};
 
     for (const duelo of duelos) {
       const avatars = [duelo.avatar1Id, duelo.avatar2Id].filter(Boolean) as number[];
       for (const avatarId of avatars) {
-        if (!nomesAvatares[avatarId]) {
-          try {
-            const avatar = await avatarService.obterPorId(avatarId);
-            novosAvatares[avatarId] = `Avatar ${avatarId}`;
-            const pid = avatar.perfilId;
-            if (pid && !nomesPerfis[pid]) {
-              const perfil = await perfilService.obterPorId(pid);
-              novosPerfis[pid] = perfil.username;
-              novosAvatares[avatarId] = perfil.username;
-            }
-          } catch (e) {
-            // fallback
+        try {
+          // Sempre tenta buscar o nome real do perfil
+          const avatar = await avatarService.obterPorId(avatarId);
+          const pid = avatar.perfilId;
+          if (pid) {
+            const perfil = await perfilService.obterPorId(pid);
+            novosPerfis[pid] = perfil.username;
+            novosAvatares[avatarId] = perfil.username;
+          } else {
             novosAvatares[avatarId] = `Avatar ${avatarId}`;
           }
+        } catch (e) {
+          // fallback
+          novosAvatares[avatarId] = `Avatar ${avatarId}`;
         }
       }
     }
@@ -140,6 +142,7 @@ export function ArenaDuelos() {
     if (Object.keys(novosAvatares).length > 0) {
       setNomesAvatares((prev) => ({ ...prev, ...novosAvatares }));
     }
+    setCarregandoNomes(false);
   };
 
   useEffect(() => {
@@ -186,7 +189,7 @@ export function ArenaDuelos() {
       avatarService
         .obterPorPerfilId(perfilId)
         .then((a) => setAvatarUsuarioId(a.id))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [perfilId]);
 
@@ -308,47 +311,6 @@ export function ArenaDuelos() {
             </Card>
           </div>
 
-          {/* Botão Iniciar Duelo */}
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold">Escolha um amigo para duelar</h3>
-            {carregandoAmigos ? (
-              <p className="text-sm text-muted-foreground">Carregando amigos...</p>
-            ) : amigos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum amigo encontrado.</p>
-            ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {amigos.map((amigo) => (
-                  <Card key={amigo.usuarioEmail} className="hover:border-primary transition-colors">
-                    <CardContent className="p-4 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold truncate">{amigo.nome || amigo.usuarioEmail}</p>
-                        <p className="text-xs text-muted-foreground truncate">{amigo.usuarioEmail}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          handleIniciarDuelo(
-                            perfilAmigoPorEmail[amigo.usuarioEmail],
-                            amigo.nome || amigo.usuarioEmail
-                          )
-                        }
-                        disabled={!perfilAmigoPorEmail[amigo.usuarioEmail]}
-                        title={
-                          !perfilAmigoPorEmail[amigo.usuarioEmail]
-                            ? 'Perfil não encontrado para este amigo'
-                            : 'Iniciar duelo'
-                        }
-                      >
-                        <Sword className="h-4 w-4 mr-2" />
-                        Duelar
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Histórico de Duelos */}
           <Card>
             <CardHeader>
@@ -356,7 +318,7 @@ export function ArenaDuelos() {
             </CardHeader>
             <CardContent>
               {erro && <p className="text-sm text-destructive mb-2">{erro}</p>}
-              {carregando ? (
+              {carregando || carregandoNomes ? (
                 <p className="text-sm text-muted-foreground">Carregando...</p>
               ) : historico.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum duelo registrado ainda.</p>
@@ -420,7 +382,7 @@ export function ArenaDuelos() {
               vs {oponenteAtual}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-3 mt-4">
             {roundsDuelo.map((round) => (
               <Card key={round.numero}>
