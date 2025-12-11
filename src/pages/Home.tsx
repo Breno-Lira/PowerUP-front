@@ -12,7 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { perfilService, PerfilResumo, avatarService, AvatarResumo } from '@/services/api';
+import { perfilService, PerfilResumo, avatarService, AvatarResumo, rankingService, RankingEntry } from '@/services/api';
 
 interface HomeData {
   xpAtual: number;
@@ -31,6 +31,7 @@ export function Home() {
   const [perfil, setPerfil] = useState<PerfilResumo | null>(null);
   const [avatar, setAvatar] = useState<AvatarResumo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [posicaoRanking, setPosicaoRanking] = useState<RankingEntry | null>(null);
   
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
@@ -45,7 +46,6 @@ export function Home() {
       }
 
       try {
-        // Perfil (nome/foto) e Avatar (nível/XP)
         const [perfilResp, avatarResp] = await Promise.all([
           perfilService.obterPorId(userData.perfilId),
           avatarService.obterPorPerfilId(userData.perfilId),
@@ -54,15 +54,28 @@ export function Home() {
         setPerfil(perfilResp);
         setAvatar(avatarResp);
 
-        // Monta dados básicos para cards/progresso
+        // Ranking global: busca posição do usuário
+        try {
+          const rankingGlobal = await rankingService.global();
+          const entradaUsuario = rankingGlobal.find(r =>
+            r.perfilId === userData.perfilId ||
+            (r.email && userEmail && r.email.toLowerCase() === userEmail.toLowerCase())
+          );
+          if (entradaUsuario) {
+            setPosicaoRanking(entradaUsuario);
+          }
+        } catch (e) {
+          console.warn('Não foi possível carregar posição no ranking global', e);
+        }
+
         setHome({
           xpAtual: avatarResp.experiencia ?? 0,
-          xpMaximo: 100, // Cada nível exige 100 XP; total é calculado abaixo
+          xpMaximo: 100,
           treinosCompletos: 0,
           treinosTotal: 0,
           rank: '—',
-          atributo1: 0,
-          atributo2: 0,
+          atributo1: avatarResp.forca ?? 0,
+          atributo2: avatarResp.nivel ?? 0,
         });
       } catch (e: any) {
         console.error(e);
@@ -105,6 +118,7 @@ export function Home() {
   }
 
   const xpTotal = avatar ? (avatar.nivel - 1) * 100 + avatar.experiencia : home.xpAtual;
+  const xpPercentual = home.xpMaximo ? Math.min((home.xpAtual / home.xpMaximo) * 100, 100) : 0;
 
   const menuItems = [
     { label: 'Home', path: '/home' },
@@ -207,29 +221,92 @@ export function Home() {
 
       {/* Conteúdo Principal */}
       <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Card Treinos */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center text-center">
-                <Dumbbell className="h-8 w-8 text-primary mb-2" />
-                <p className="text-sm text-muted-foreground mb-1">Treinos</p>
-                <p className="text-2xl font-bold">
-                  {home.treinosCompletos}/{home.treinosTotal}
-                </p>
+        {/* Hero / Saudações */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-6 md:p-8 bg-gradient-to-r from-blue-50 to-indigo-100">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-14 w-14">
+                  <AvatarImage src={perfil?.foto || undefined} alt={perfil?.username || 'Usuário'} />
+                  <AvatarFallback className="bg-primary/10">
+                    <User className="h-6 w-6 text-primary" />
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm text-muted-foreground">Bem-vindo de volta</p>
+                  <p className="text-xl font-semibold">{perfil?.username || userData.username || 'Usuário'}</p>
+                  <p className="text-sm text-muted-foreground">{userEmail || 'email@exemplo.com'}</p>
+                </div>
               </div>
+              <div className="flex-1 md:max-w-md">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium">Progresso de XP</span>
+                  <span className="text-xs text-muted-foreground">{xpTotal} XP</span>
+                </div>
+                <Progress value={xpPercentual} className="h-3" />
+                <div className="text-xs text-muted-foreground mt-1">
+                  {home.xpAtual}/{home.xpMaximo} XP para o próximo nível
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Grades de destaques */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Dumbbell className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Treinos</p>
+                  <p className="text-2xl font-bold">{home.treinosCompletos}/{home.treinosTotal}</p>
+                </div>
+              </div>
+              <Button variant="outline" onClick={() => navigate('/treinos')} className="w-full">
+                Ver treinos
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Card Rank */}
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center text-center">
-                <Trophy className="h-8 w-8 text-primary mb-2" />
-                <p className="text-sm text-muted-foreground mb-1">Rank</p>
-                <p className="text-2xl font-bold">{home.rank}</p>
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Trophy className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Ranking Global</p>
+                  <p className="text-2xl font-bold">
+                    {posicaoRanking ? `#${posicaoRanking.posicao}` : '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {posicaoRanking ? `${posicaoRanking.xpTotal.toLocaleString('pt-BR')} XP` : 'carregando...'}
+                  </p>
+                </div>
               </div>
+              <Button variant="outline" onClick={() => navigate('/ranking')} className="w-full">
+                Ver ranking
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <Sword className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Duelos</p>
+                  <p className="text-2xl font-bold">Arena</p>
+                </div>
+              </div>
+              <Button variant="outline" onClick={() => navigate('/arena-duelos')} className="w-full">
+                Ir para arena
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -237,54 +314,56 @@ export function Home() {
         {/* Barras de Progresso de Atributos */}
         <Card>
           <CardContent className="pt-6 space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Atributo 1</span>
-                <span className="text-sm text-muted-foreground">{home.atributo1}%</span>
-              </div>
-              <Progress value={home.atributo1} />
+            <div className="flex items-center justify-between">
+              <span className="text-base font-semibold">Atributos</span>
+              <span className="text-sm text-muted-foreground">Rumo ao próximo nível</span>
             </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Atributo 2</span>
-                <span className="text-sm text-muted-foreground">{home.atributo2}%</span>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">Atributo 1</span>
+                  <span className="text-muted-foreground">{home.atributo1}%</span>
+                </div>
+                <Progress value={home.atributo1} />
               </div>
-              <Progress value={home.atributo2} />
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">Atributo 2</span>
+                  <span className="text-muted-foreground">{home.atributo2}%</span>
+                </div>
+                <Progress value={home.atributo2} />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Card Duelos */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center text-center">
-              <Sword className="h-8 w-8 text-primary mb-2" />
-              <p className="text-lg font-semibold mb-1">Duelos</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Desafie outros usuários
-              </p>
-              <Button
-                onClick={() => navigate('/arena-duelos')}
-                className="w-full"
-                size="sm"
-              >
-                <Sword className="h-4 w-4 mr-2" />
-                Arena de Duelos
+        {/* Ações rápidas */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Play className="h-5 w-5 text-primary" />
+                <p className="text-lg font-semibold">Iniciar Treino</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Continue sua rotina e ganhe XP mais rápido.</p>
+              <Button onClick={() => navigate('/treinos')} className="w-full" size="lg">
+                Começar agora
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Botão Iniciar Treino */}
-        <Button
-          onClick={() => navigate('/treinos')}
-          size="lg"
-          className="w-full"
-        >
-          <Play className="h-5 w-5 mr-2" />
-          Iniciar Treino
-        </Button>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                <p className="text-lg font-semibold">Personalizar Avatar</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Equipe acessórios e destaque seu perfil.</p>
+              <Button variant="outline" onClick={() => navigate('/perfil')} className="w-full" size="lg">
+                Ir para perfil
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
