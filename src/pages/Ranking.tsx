@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Menu, TrendingUp, Crown, Check, User } from 'lucide-react';
+import { Menu, TrendingUp, Crown, Check, User, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ export function Ranking() {
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
-
+  
   const [abaAtiva, setAbaAtiva] = useState<'global' | 'amigos' | 'equipes'>('global');
   const [rankingGlobal, setRankingGlobal] = useState<RankingEntry[]>([]);
   const [rankingAmigos, setRankingAmigos] = useState<RankingEntry[]>([]);
@@ -240,7 +240,7 @@ export function Ranking() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] sm:w-[320px]">
+            <SheetContent side="left" className="w-[280px] sm:w-[320px] flex flex-col h-full">
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
@@ -265,7 +265,7 @@ export function Ranking() {
                 </div>
               </div>
 
-              <nav className="space-y-2">
+              <nav className="space-y-2 flex-1 overflow-auto">
                 {menuItems.map((item) => (
                   <button
                     key={item.path}
@@ -278,6 +278,21 @@ export function Ranking() {
                   </button>
                 ))}
               </nav>
+
+              {/* Logout fixo no rodapé da sidebar */}
+              <div className="mt-auto pt-6 pb-4">
+                <Button
+                  variant="destructive"
+                  className="w-full justify-center gap-2"
+                  onClick={() => {
+                    localStorage.removeItem('user');
+                    navigate('/login');
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sair
+                </Button>
+              </div>
             </SheetContent>
           </Sheet>
         </div>
@@ -294,27 +309,27 @@ export function Ranking() {
 
           {/* Card Sua Posição Global */}
           {posicaoUsuario && (
-            <Card className="bg-green-50 border-green-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center">
-                      <TrendingUp className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Sua Posição Global</p>
-                      <p className="text-lg font-semibold">
-                        #{posicaoUsuario.posicao} · {posicaoUsuario.titulo}
-                      </p>
-                    </div>
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center">
+                    <TrendingUp className="h-6 w-6 text-white" />
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold">{posicaoUsuario.xp.toLocaleString('pt-BR')} XP</p>
-                    <p className="text-sm text-muted-foreground">Nível {posicaoUsuario.nivel}</p>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Sua Posição Global</p>
+                    <p className="text-lg font-semibold">
+                        #{posicaoUsuario.posicao} · {posicaoUsuario.titulo}
+                    </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="text-right">
+                  <p className="text-lg font-bold">{posicaoUsuario.xp.toLocaleString('pt-BR')} XP</p>
+                  <p className="text-sm text-muted-foreground">Nível {posicaoUsuario.nivel}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           )}
 
           {/* Títulos de Rank */}

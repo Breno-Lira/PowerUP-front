@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Menu, Settings, Dumbbell, TrendingUp, Sword, Flame, Activity, User, Loader2, X, Trophy } from 'lucide-react';
+import { Menu, Settings, Dumbbell, TrendingUp, Sword, Flame, Activity, User, Loader2, X, Trophy, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -352,7 +352,7 @@ export function Perfil() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] sm:w-[320px]">
+            <SheetContent side="left" className="w-[280px] sm:w-[320px] flex flex-col h-full">
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
@@ -377,7 +377,7 @@ export function Perfil() {
                 </div>
               </div>
 
-              <nav className="space-y-2">
+              <nav className="space-y-2 flex-1 overflow-auto">
                 {menuItems.map((item) => (
                   <button
                     key={item.path}
@@ -390,6 +390,20 @@ export function Perfil() {
                   </button>
                 ))}
               </nav>
+
+              <div className="mt-auto pt-6 pb-4">
+                <Button
+                  variant="destructive"
+                  className="w-full justify-center gap-2"
+                  onClick={() => {
+                    localStorage.removeItem('user');
+                    navigate('/login');
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sair
+                </Button>
+              </div>
             </SheetContent>
           </Sheet>
         </div>

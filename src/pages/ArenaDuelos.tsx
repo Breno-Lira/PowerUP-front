@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, Sword, Trophy, X } from 'lucide-react';
+import { Menu, Sword, Trophy, X, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -106,11 +106,11 @@ export function ArenaDuelos() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] sm:w-[320px]">
+            <SheetContent side="left" className="w-[280px] sm:w-[320px] flex flex-col h-full">
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
-              <nav className="mt-8 space-y-2">
+              <nav className="mt-8 space-y-2 flex-1 overflow-auto">
                 {menuItems.map((item) => (
                   <button
                     key={item.path}
@@ -123,6 +123,20 @@ export function ArenaDuelos() {
                   </button>
                 ))}
               </nav>
+
+              <div className="mt-auto pt-6 pb-4">
+                <Button
+                  variant="destructive"
+                  className="w-full justify-center gap-2"
+                  onClick={() => {
+                    localStorage.removeItem('user');
+                    navigate('/login');
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sair
+                </Button>
+              </div>
             </SheetContent>
           </Sheet>
         </div>
