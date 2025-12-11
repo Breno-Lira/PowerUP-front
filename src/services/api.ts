@@ -893,6 +893,8 @@ export interface RivalidadeResumo {
   id: number;
   perfil1: number;
   perfil2: number;
+  nomePerfil1: string | null;
+  nomePerfil2: string | null;
   dataConvite: string;
   inicio: string | null;
   fim: string | null;
@@ -961,6 +963,11 @@ export interface FinalizarRivalidadeRequest {
   usuarioId: number;
 }
 
+export interface CancelarRivalidadeRequest {
+  rivalidadeId: number;
+  usuarioId: number;
+}
+
 export const rivalidadeService = {
   enviarConvite: async (data: EnviarConviteRequest): Promise<RivalidadeResumo> => {
     const response = await api.post<RivalidadeResumo>('/rivalidades/enviar-convite', data);
@@ -984,6 +991,11 @@ export const rivalidadeService = {
 
   listarPorPerfil: async (perfilId: number): Promise<RivalidadeResumo[]> => {
     const response = await api.get<RivalidadeResumo[]>(`/rivalidades/perfil/${perfilId}`);
+    return response.data;
+  },
+
+  cancelar: async (data: CancelarRivalidadeRequest): Promise<RivalidadeResumo> => {
+    const response = await api.post<RivalidadeResumo>('/rivalidades/cancelar', data);
     return response.data;
   },
 

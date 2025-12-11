@@ -401,7 +401,58 @@ export function Social() {
       await carregarRivalidades();
     } catch (error: any) {
       console.error('Erro ao aceitar convite:', error);
-      setErroRivalidade(error.response?.data || error.message || 'Erro ao aceitar convite.');
+      let mensagemErro = 'Erro ao aceitar convite. Tente novamente.';
+      
+      if (error.response) {
+        // Se a resposta tem uma mensagem específica
+        if (error.response.data?.mensagem) {
+          mensagemErro = error.response.data.mensagem;
+        } else if (typeof error.response.data === 'string') {
+          mensagemErro = error.response.data;
+        } else if (error.response.status === 400) {
+          mensagemErro = error.response.data?.mensagem || 'Não foi possível aceitar o convite. Verifique se você já possui uma rivalidade ativa.';
+        } else if (error.response.status === 500) {
+          mensagemErro = 'Erro no servidor. Tente novamente mais tarde.';
+        }
+      } else if (error.message) {
+        mensagemErro = error.message;
+      }
+      
+      setErroRivalidade(mensagemErro);
+    }
+  };
+
+  const handleCancelarConvite = async (rivalidade: RivalidadeResumo) => {
+    if (!userPerfilId) return;
+
+    try {
+      await rivalidadeService.cancelar({
+        rivalidadeId: rivalidade.id,
+        usuarioId: userPerfilId,
+      });
+      
+      setMensagemSucesso('Convite cancelado com sucesso!');
+      setTimeout(() => setMensagemSucesso(null), 3000);
+      await carregarRivalidades();
+    } catch (error: any) {
+      console.error('Erro ao cancelar convite:', error);
+      let mensagemErro = 'Erro ao cancelar convite. Tente novamente.';
+      
+      if (error.response) {
+        if (error.response.data?.mensagem) {
+          mensagemErro = error.response.data.mensagem;
+        } else if (typeof error.response.data === 'string') {
+          mensagemErro = error.response.data;
+        } else if (error.response.status === 400) {
+          mensagemErro = error.response.data?.mensagem || 'Não foi possível cancelar o convite.';
+        } else if (error.response.status === 500) {
+          mensagemErro = 'Erro no servidor. Tente novamente mais tarde.';
+        }
+      } else if (error.message) {
+        mensagemErro = error.message;
+      }
+      
+      setErroRivalidade(mensagemErro);
     }
   };
 
@@ -903,7 +954,9 @@ export function Social() {
                                 <div>
                                   <p className="font-medium">Convite de Rivalidade</p>
                                   <p className="text-sm text-muted-foreground">
-                                    Você recebeu um convite de rivalidade
+                                    {rivalidade.nomePerfil1 
+                                      ? `Você recebeu um convite de rivalidade de ${rivalidade.nomePerfil1}`
+                                      : 'Você recebeu um convite de rivalidade'}
                                   </p>
                                 </div>
                                 <div className="flex gap-2">
@@ -951,6 +1004,13 @@ export function Social() {
                                 return isParticipante && r.status === 'ATIVA';
                               });
                               
+                              // Verificar se já existe convite pendente enviado por este usuário
+                              const convitePendente = perfilAmigoId && rivalidades.find(r => {
+                                return r.perfil1 === userPerfilId && 
+                                       r.perfil2 === perfilAmigoId && 
+                                       r.status === 'PENDENTE';
+                              });
+                              
                               return (
                                 <div
                                   key={amigo.usuarioEmail}
@@ -965,13 +1025,30 @@ export function Social() {
                                       <p className="text-sm text-muted-foreground">{amigo.usuarioEmail}</p>
                                     </div>
                                   </div>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleEnviarConvite(amigo)}
-                                    disabled={!!temRivalidadeAtiva}
-                                  >
-                                    {temRivalidadeAtiva ? 'Rivalidade Ativa' : 'Enviar Convite'}
-                                  </Button>
+                                  <div className="flex items-center gap-2">
+                                    {convitePendente && (
+                                      <span className="text-sm text-muted-foreground">
+                                        Convite enviado
+                                      </span>
+                                    )}
+                                    {convitePendente ? (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleCancelarConvite(convitePendente)}
+                                      >
+                                        Cancelar
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleEnviarConvite(amigo)}
+                                        disabled={!!temRivalidadeAtiva}
+                                      >
+                                        {temRivalidadeAtiva ? 'Rivalidade Ativa' : 'Enviar Convite'}
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })}
