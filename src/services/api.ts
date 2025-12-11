@@ -434,6 +434,9 @@ export interface AcessorioResumo {
   imagem: string;
   nome: string;
   preco: number;
+  qualidade?: string;
+  categoria?: string;
+  subcategoria?: string | null;
 }
 
 export interface AvatarResumo {
@@ -891,6 +894,9 @@ export interface AcessorioResumoLoja {
   imagem: string;
   nome: string;
   preco: number;
+  qualidade: string;
+  categoria: string;
+  subcategoria: string | null;
 }
 
 export interface ItemLojaResumo {
@@ -899,6 +905,9 @@ export interface ItemLojaResumo {
   imagem: string;
   nome: string;
   preco: number;
+  qualidade: string;
+  categoria: string;
+  subcategoria: string | null;
   acessorios: AcessorioResumoLoja[];
 }
 
@@ -934,6 +943,9 @@ export const lojaService = {
       imagem: acessorio.imagem,
       nome: acessorio.nome,
       preco: acessorio.preco,
+      qualidade: acessorio.qualidade,
+      categoria: acessorio.categoria,
+      subcategoria: acessorio.subcategoria ?? null,
       acessorios: [] // Lista vazia pois não há mais acessórios aninhados
     }));
   },
@@ -946,6 +958,9 @@ export const lojaService = {
       imagem: acessorio.imagem,
       nome: acessorio.nome,
       preco: acessorio.preco,
+      qualidade: acessorio.qualidade,
+      categoria: acessorio.categoria,
+      subcategoria: acessorio.subcategoria ?? null,
       acessorios: []
     };
   },

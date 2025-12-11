@@ -83,19 +83,17 @@ export function Loja() {
     { label: 'Social', path: '/social' },
   ];
 
-  // Função para detectar a qualidade do item pelo nome
-  const detectarQualidade = (nome: string): string | null => {
-    const nomeLower = nome.toLowerCase();
-    if (nomeLower.includes('básica') || nomeLower.includes('basica') || 
-        nomeLower.includes('básico') || nomeLower.includes('basico')) return 'basica';
-    if (nomeLower.includes('esportiva') || nomeLower.includes('esportivo')) return 'esportiva';
+  const inferirQualidade = (item: ItemLojaResumo) => {
+    if (item.qualidade) return item.qualidade.toLowerCase();
+    const nomeLower = item.nome.toLowerCase();
+    if (nomeLower.includes('esport')) return 'esportiva';
     if (nomeLower.includes('premium')) return 'premium';
-    return null;
+    return 'basica';
   };
 
-  // Função para detectar o tipo de item pelo nome
-  const detectarTipo = (nome: string): string | null => {
-    const nomeLower = nome.toLowerCase();
+  const inferirSubcategoria = (item: ItemLojaResumo) => {
+    if (item.subcategoria) return item.subcategoria.toLowerCase();
+    const nomeLower = item.nome.toLowerCase();
     if (nomeLower.includes('regata')) return 'regatas';
     if (nomeLower.includes('camiseta')) return 'camisetas';
     if (nomeLower.includes('moletom') || nomeLower.includes('moletão')) return 'moletons';
@@ -112,14 +110,13 @@ export function Loja() {
     const contadores: { [key: string]: number } = {};
 
     itens.forEach((item) => {
-      const qualidade = detectarQualidade(item.nome);
-      const tipo = detectarTipo(item.nome);
-
+      const qualidade = inferirQualidade(item);
+      const subcat = inferirSubcategoria(item);
       if (qualidade) {
         contadores[qualidade] = (contadores[qualidade] || 0) + 1;
       }
-      if (tipo) {
-        contadores[tipo] = (contadores[tipo] || 0) + 1;
+      if (subcat) {
+        contadores[subcat] = (contadores[subcat] || 0) + 1;
       }
     });
 
@@ -147,12 +144,12 @@ export function Loja() {
     }
 
     const itensFiltrados = itens.filter((item) => {
-      const qualidade = detectarQualidade(item.nome);
-      const tipo = detectarTipo(item.nome);
-
       // Verifica se o item corresponde a algum filtro selecionado
       return filtrosSelecionados.some((filtroId) => {
-        return qualidade === filtroId || tipo === filtroId;
+        return (
+          inferirQualidade(item) === filtroId ||
+          inferirSubcategoria(item) === filtroId
+        );
       });
     });
 
@@ -174,6 +171,11 @@ export function Loja() {
       return novosFiltros;
     });
   };
+
+  // Reaplicar filtros sempre que filtros ou itens mudarem
+  useEffect(() => {
+    aplicarFiltros(itens, filtros);
+  }, [filtros, itens]);
 
   useEffect(() => {
     // Obter dados do usuário logado
@@ -448,18 +450,19 @@ export function Loja() {
         <div className="flex gap-6">
           {/* Sidebar de Filtros */}
           <div className="w-64 flex-shrink-0">
-            <Card>
+            <Card className="shadow-sm">
               <CardContent className="pt-6">
                 <h2 className="text-lg font-semibold mb-4">Filtros</h2>
                 <div className="space-y-6">
                   {filtros.map((categoria, categoriaIndex) => (
-                    <div key={categoria.nome}>
-                      <h3 className="font-medium mb-3">{categoria.nome}</h3>
+                    <div key={categoria.nome} className="space-y-2">
+                      <h3 className="font-semibold text-sm text-muted-foreground">{categoria.nome}</h3>
                       <div className="space-y-2">
                         {categoria.itens.map((item) => (
-                          <div
+                          <label
                             key={item.id}
-                            className="flex items-center gap-2"
+                            htmlFor={`${categoria.nome}-${item.id}`}
+                            className="flex items-center gap-2 text-sm cursor-pointer rounded-md px-2 py-1 hover:bg-accent/60 transition-colors"
                           >
                             <Checkbox
                               id={`${categoria.nome}-${item.id}`}
@@ -468,13 +471,11 @@ export function Loja() {
                                 handleToggleFiltro(categoriaIndex, item.id)
                               }
                             />
-                            <label
-                              htmlFor={`${categoria.nome}-${item.id}`}
-                              className="text-sm cursor-pointer flex-1"
-                            >
-                              {item.nome}
-                            </label>
-                          </div>
+                            <span className="flex-1">{item.nome}</span>
+                            <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                              {item.quantidade}
+                            </span>
+                          </label>
                         ))}
                       </div>
                     </div>
@@ -549,6 +550,19 @@ export function Loja() {
                         {/* Informações do Item */}
                         <div className="p-4">
                           <h3 className="font-bold text-lg mb-2 line-clamp-2 min-h-[3rem]">{item.nome}</h3>
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-primary/10 text-primary">
+                              {item.qualidade || 'Basica'}
+                            </span>
+                            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-muted">
+                              {item.categoria || 'Acessorio'}
+                            </span>
+                            {item.subcategoria && (
+                              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-50 text-blue-700">
+                                {item.subcategoria}
+                              </span>
+                            )}
+                          </div>
                           
                           <div className="flex items-center justify-between mt-4">
                             <div className="flex flex-col">
