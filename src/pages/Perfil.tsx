@@ -64,6 +64,10 @@ export function Perfil() {
   const navigate = useNavigate();
   const [perfil, setPerfil] = useState<PerfilData | null>(null);
   const [perfilResumo, setPerfilResumo] = useState<PerfilResumo | null>(null);
+  const [avatarDetalhe, setAvatarDetalhe] = useState<AvatarResumo | null>(null);
+  const [acessoriosSelecionados, setAcessoriosSelecionados] = useState<number[]>([]);
+  const [salvandoAcessorios, setSalvandoAcessorios] = useState(false);
+  const [erroAcessorios, setErroAcessorios] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<'estatisticas' | 'avatar'>('estatisticas');
   const [modalEditarAberto, setModalEditarAberto] = useState(false);
@@ -125,6 +129,10 @@ export function Perfil() {
         avatar = await avatarService.obterPorPerfilId(userPerfilId);
         if (avatar) {
           atributos = await avatarService.obterAtributos(avatar.id);
+          setAvatarDetalhe(avatar);
+          setAcessoriosSelecionados(
+            avatar.acessorios?.filter(a => a.equipado)?.map(a => a.id) || []
+          );
         }
       } catch (error) {
         console.error('Erro ao carregar avatar:', error);
@@ -316,6 +324,50 @@ export function Perfil() {
     }
   };
 
+  const toggleAcessorio = (id: number) => {
+    if (!avatarDetalhe) return;
+    const alvo = avatarDetalhe.acessorios.find(a => a.id === id);
+    if (!alvo) return;
+    const subcatAlvo = (alvo.subcategoria || '__sem_subcat__').toLowerCase();
+
+    const acessoriosAtualizados = avatarDetalhe.acessorios.map(acc => {
+      const mesmaSubcat = (acc.subcategoria || '__sem_subcat__').toLowerCase() === subcatAlvo;
+      if (acc.id === id) {
+        // alterna o alvo
+        return { ...acc, equipado: !(acc.equipado ?? false) };
+      }
+      // desmarca outros da mesma subcategoria
+      if (mesmaSubcat) {
+        return { ...acc, equipado: false };
+      }
+      return acc;
+    });
+
+    const selecionados = acessoriosAtualizados
+      .filter(a => a.equipado)
+      .map(a => a.id);
+
+    setAvatarDetalhe({ ...avatarDetalhe, acessorios: acessoriosAtualizados });
+    setAcessoriosSelecionados(selecionados);
+  };
+
+  const handleSalvarAcessorios = async () => {
+    if (!avatarDetalhe) return;
+    setSalvandoAcessorios(true);
+    setErroAcessorios(null);
+    try {
+      const atualizado = await avatarService.equiparAcessorios(avatarDetalhe.id, acessoriosSelecionados);
+      setAvatarDetalhe(atualizado);
+      setAcessoriosSelecionados(
+        atualizado.acessorios?.filter(a => a.equipado)?.map(a => a.id) || []
+      );
+    } catch (e: any) {
+      setErroAcessorios(e.message || 'Erro ao salvar acessórios');
+    } finally {
+      setSalvandoAcessorios(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -483,6 +535,103 @@ export function Perfil() {
             </CardContent>
           </Card>
 
+          {/* Personalizar Avatar */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Personalizar Avatar</CardTitle>
+              <CardDescription>Equipe os acessórios que você já comprou na loja.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Preview do avatar equipado */}
+              <div className="flex items-start gap-4 p-4 border rounded-lg bg-muted/30">
+                <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-indigo-200 flex items-center justify-center text-3xl">
+                  <span role="img" aria-label="avatar">🧍</span>
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                    {(avatarDetalhe?.acessorios || [])
+                      .filter(a => a.equipado)
+                      .map(a => (
+                        <span
+                          key={a.id}
+                          className="text-lg drop-shadow"
+                          title={a.nome || ''}
+                        >
+                          {a.icone || '🛡️'}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-semibold">Equipados</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(avatarDetalhe?.acessorios || [])
+                      .filter(a => a.equipado)
+                      .map(a => (
+                        <span
+                          key={a.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs"
+                        >
+                          <span>{a.icone || '🛡️'}</span>
+                          <span className="font-medium">{a.nome || 'Acessório'}</span>
+                        </span>
+                      ))}
+                    {(!avatarDetalhe?.acessorios || avatarDetalhe.acessorios.filter(a => a.equipado).length === 0) && (
+                      <span className="text-sm text-muted-foreground">Nenhum acessório equipado</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {erroAcessorios && (
+                <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 px-3 py-2 rounded-md">
+                  {erroAcessorios}
+                </div>
+              )}
+              {avatarDetalhe && avatarDetalhe.acessorios && avatarDetalhe.acessorios.length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {avatarDetalhe.acessorios.map((acc) => (
+                    <label
+                      key={acc.id}
+                      className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                        acessoriosSelecionados.includes(acc.id)
+                          ? 'border-primary bg-primary/5'
+                          : 'hover:bg-accent/50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={acc.equipado ?? false}
+                        onChange={() => toggleAcessorio(acc.id)}
+                      />
+                      <div className="flex-1">
+                        <p className="font-semibold flex items-center gap-2">
+                          <span className="text-xl">{acc.icone || '🛡️'}</span>
+                          {acc.nome}
+                        </p>
+                        <div className="text-xs text-muted-foreground flex gap-2 flex-wrap mt-1">
+                          <span>{acc.categoria || 'Acessorio'}</span>
+                          {acc.subcategoria && <span>· {acc.subcategoria}</span>}
+                          <span>· {acc.qualidade || 'Basica'}</span>
+                          <span>· {acc.preco} $</span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Você ainda não tem acessórios. Compre na loja para personalizar seu avatar.
+                </p>
+              )}
+
+              <div className="flex justify-end">
+                <Button onClick={handleSalvarAcessorios} disabled={salvandoAcessorios || !avatarDetalhe}>
+                  {salvandoAcessorios ? 'Salvando...' : 'Salvar acessórios'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Estatísticas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
@@ -542,31 +691,7 @@ export function Perfil() {
             </CardContent>
           </Card>
 
-          {/* Abas de Navegação */}
-          <div className="flex gap-2 border-b">
-            <button
-              onClick={() => setAbaAtiva('estatisticas')}
-              className={`px-4 py-2 font-medium transition-colors ${
-                abaAtiva === 'estatisticas'
-                  ? 'border-b-2 border-primary text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Estatísticas
-            </button>
-            <button
-              onClick={() => setAbaAtiva('avatar')}
-              className={`px-4 py-2 font-medium transition-colors ${
-                abaAtiva === 'avatar'
-                  ? 'border-b-2 border-primary text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Avatar
-            </button>
-          </div>
-
-          {/* Conteúdo da Aba Estatísticas */}
+          {/* Estatísticas */}
           {abaAtiva === 'estatisticas' && (
             <Card>
               <CardHeader>
@@ -612,19 +737,6 @@ export function Perfil() {
                   </div>
                   <Progress value={perfil.atributos.flexibilidade} />
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Conteúdo da Aba Avatar */}
-          {abaAtiva === 'avatar' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Avatar</CardTitle>
-                <CardDescription>Personalize seu avatar</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Funcionalidade de avatar em desenvolvimento...</p>
               </CardContent>
             </Card>
           )}

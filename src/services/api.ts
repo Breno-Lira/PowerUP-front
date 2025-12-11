@@ -437,6 +437,7 @@ export interface AcessorioResumo {
   qualidade?: string;
   categoria?: string;
   subcategoria?: string | null;
+  equipado?: boolean;
 }
 
 export interface AvatarResumo {
@@ -458,6 +459,14 @@ export interface AtributosCalculados {
 export const avatarService = {
   obterPorPerfilId: async (perfilId: number): Promise<AvatarResumo> => {
     const response = await api.get<AvatarResumo>(`/avatars/perfil/${perfilId}`);
+    return response.data;
+  },
+
+  equiparAcessorios: async (avatarId: number, acessorioIds: number[]): Promise<AvatarResumo> => {
+    const response = await api.put<AvatarResumo>(`/avatars/${avatarId}/acessorios`, {
+      avatarId,
+      acessorioIds,
+    });
     return response.data;
   },
 
