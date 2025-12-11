@@ -96,6 +96,7 @@ export function Grupo() {
     { label: 'Ranking', path: '/ranking' },
     { label: 'Perfil', path: '/perfil' },
     { label: 'Social', path: '/social' },
+    { label: 'Arena Duelos', path: '/arena-duelos' },
   ];
 
   const handleCopiarCodigo = () => {

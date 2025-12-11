@@ -65,6 +65,7 @@ export function Ranking() {
     { label: 'Ranking', path: '/ranking' },
     { label: 'Perfil', path: '/perfil' },
     { label: 'Social', path: '/social' },
+    { label: 'Arena Duelos', path: '/arena-duelos' },
   ];
 
   useEffect(() => {

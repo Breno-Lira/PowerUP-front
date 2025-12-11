@@ -325,6 +325,11 @@ export const dueloService = {
     return response.data;
   },
 
+  listarPorPerfil: async (perfilId: number): Promise<DueloResumo[]> => {
+    const response = await api.get<DueloResumo[]>(`/duelos/perfil/${perfilId}`);
+    return response.data;
+  },
+
   obterAtributosAvatar: async (avatarId: number): Promise<AtributosCalculados> => {
     const response = await api.get<AtributosCalculados>(`/avatars/${avatarId}/atributos`);
     return response.data;
@@ -480,6 +485,11 @@ export interface AtributosCalculados {
 export const avatarService = {
   obterPorPerfilId: async (perfilId: number): Promise<AvatarResumo> => {
     const response = await api.get<AvatarResumo>(`/avatars/perfil/${perfilId}`);
+    return response.data;
+  },
+
+  obterPorId: async (avatarId: number): Promise<AvatarResumo> => {
+    const response = await api.get<AvatarResumo>(`/avatars/${avatarId}`);
     return response.data;
   },
 

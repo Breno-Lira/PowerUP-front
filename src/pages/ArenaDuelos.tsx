@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Menu, Sword, Trophy, X, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { UserInfoHeader } from '@/components/UserInfoHeader';
+import { dueloService, DueloResumo, avatarService, perfilService, usuarioService, UsuarioResumo } from '@/services/api';
 import {
   Dialog,
   DialogContent,
@@ -21,42 +22,27 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 
-interface DueloHistorico {
-  id: number;
-  oponente: string;
-  data: string;
-  resultado: 'vitoria' | 'derrota';
-  pontuacaoOponente: number;
-  pontuacaoUsuario: number;
-}
-
-interface RoundDuelo {
-  numero: number;
-  atributo: string;
-  pontuacaoUsuario: number;
-  pontuacaoOponente: number;
-}
-
 export function ArenaDuelos() {
   const navigate = useNavigate();
-  const [vitorias, setVitorias] = useState(1);
-  const [derrotas, setDerrotas] = useState(2);
-  const [duelosHoje, setDuelosHoje] = useState({ completos: 3, maximo: 5 });
+  const [vitorias, setVitorias] = useState(0);
+  const [derrotas, setDerrotas] = useState(0);
+  const [duelosHoje, setDuelosHoje] = useState({ completos: 0, maximo: 5 });
   const [modalResultadoAberto, setModalResultadoAberto] = useState(false);
   const [resultadoDuelo, setResultadoDuelo] = useState<'vitoria' | 'derrota' | null>(null);
+  const [historico, setHistorico] = useState<DueloResumo[]>([]);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const userData = JSON.parse(localStorage.getItem('user') || '{}');
+  const perfilId = userData?.perfilId as number | undefined;
+  const userEmail = userData?.email as string | undefined;
+  const [nomesPerfis, setNomesPerfis] = useState<Record<number, string>>({});
+  const [nomesAvatares, setNomesAvatares] = useState<Record<number, string>>({});
+  const [amigos, setAmigos] = useState<UsuarioResumo[]>([]);
+  const [carregandoAmigos, setCarregandoAmigos] = useState(false);
+  const [perfilAmigoPorEmail, setPerfilAmigoPorEmail] = useState<Record<string, number>>({});
+  const [avatarUsuarioId, setAvatarUsuarioId] = useState<number | null>(null);
 
   const oponenteAtual = 'Jogador n1';
-
-  const historicoDuelos: DueloHistorico[] = [
-    {
-      id: 1,
-      oponente: 'Carlos M.',
-      data: '12/04/25',
-      resultado: 'vitoria',
-      pontuacaoOponente: 1,
-      pontuacaoUsuario: 2,
-    },
-  ];
 
   const menuItems = [
     { label: 'Home', path: '/home' },
@@ -67,33 +53,165 @@ export function ArenaDuelos() {
     { label: 'Ranking', path: '/ranking' },
     { label: 'Perfil', path: '/perfil' },
     { label: 'Social', path: '/social' },
+    { label: 'Arena Duelos', path: '/arena-duelos' },
   ];
 
-  const roundsDuelo: RoundDuelo[] = [
-    { numero: 1, atributo: 'Resistência', pontuacaoUsuario: 87, pontuacaoOponente: 90 },
-    { numero: 2, atributo: 'Agilidade', pontuacaoUsuario: 82, pontuacaoOponente: 87 },
-    { numero: 3, atributo: 'Força', pontuacaoUsuario: 83, pontuacaoOponente: 88 },
-  ];
+  const roundsDuelo = useMemo(
+    () => [
+      { numero: 1, atributo: 'Resistência', pontuacaoUsuario: 87, pontuacaoOponente: 90 },
+      { numero: 2, atributo: 'Agilidade', pontuacaoUsuario: 82, pontuacaoOponente: 87 },
+      { numero: 3, atributo: 'Força', pontuacaoUsuario: 83, pontuacaoOponente: 88 },
+    ],
+    []
+  );
 
-  const handleIniciarDuelo = () => {
-    // Simular duelo e calcular resultado
-    const totalUsuario = roundsDuelo.reduce((acc, round) => acc + round.pontuacaoUsuario, 0);
-    const totalOponente = roundsDuelo.reduce((acc, round) => acc + round.pontuacaoOponente, 0);
-    
-    const resultado = totalUsuario > totalOponente ? 'vitoria' : 'derrota';
-    setResultadoDuelo(resultado);
-    setModalResultadoAberto(true);
-
-    // Atualizar estatísticas
-    if (resultado === 'vitoria') {
-      setVitorias((prev) => prev + 1);
-    } else {
-      setDerrotas((prev) => prev + 1);
+  const carregarHistorico = async () => {
+    if (!perfilId) return;
+    setCarregando(true);
+    setErro(null);
+    try {
+      const duelos = await dueloService.listarPorPerfil(perfilId);
+      setHistorico(duelos);
+      if (avatarUsuarioId) {
+        const vits = duelos.filter((d) => {
+          const r = d.resultado?.toLowerCase() || '';
+          // Vitória: resultado diz que desafiante ganhou E eu sou o avatar1, OU resultado diz que desafiado ganhou E eu sou o avatar2
+          if (r.includes('desafiante') && d.avatar1Id === avatarUsuarioId) return true;
+          if (r.includes('desafiado') && d.avatar2Id === avatarUsuarioId) return true;
+          return false;
+        }).length;
+        const derr = duelos.filter((d) => {
+          const r = d.resultado?.toLowerCase() || '';
+          // Derrota: resultado diz que desafiante ganhou E eu sou o avatar2, OU resultado diz que desafiado ganhou E eu sou o avatar1
+          if (r.includes('desafiante') && d.avatar2Id === avatarUsuarioId) return true;
+          if (r.includes('desafiado') && d.avatar1Id === avatarUsuarioId) return true;
+          return false;
+        }).length;
+        setVitorias(vits);
+        setDerrotas(derr);
+        const hoje = new Date().toDateString();
+        const duelosHoje = duelos.filter(
+          (d) => d.dataDuelo && new Date(d.dataDuelo).toDateString() === hoje
+        ).length;
+        setDuelosHoje({ completos: duelosHoje, maximo: 5 });
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar histórico de duelos', error);
+      setErro('Não foi possível carregar o histórico de duelos.');
+    } finally {
+      setCarregando(false);
     }
-    setDuelosHoje((prev) => ({
-      ...prev,
-      completos: Math.min(prev.completos + 1, prev.maximo),
-    }));
+  };
+
+  useEffect(() => {
+    if (perfilId) {
+      carregarHistorico();
+    }
+  }, [perfilId]);
+
+  const resolverNomes = async (duelos: DueloResumo[]) => {
+    const novosPerfis: Record<number, string> = {};
+    const novosAvatares: Record<number, string> = {};
+
+    for (const duelo of duelos) {
+      const avatars = [duelo.avatar1Id, duelo.avatar2Id].filter(Boolean) as number[];
+      for (const avatarId of avatars) {
+        if (!nomesAvatares[avatarId]) {
+          try {
+            const avatar = await avatarService.obterPorId(avatarId);
+            novosAvatares[avatarId] = `Avatar ${avatarId}`;
+            const pid = avatar.perfilId;
+            if (pid && !nomesPerfis[pid]) {
+              const perfil = await perfilService.obterPorId(pid);
+              novosPerfis[pid] = perfil.username;
+              novosAvatares[avatarId] = perfil.username;
+            }
+          } catch (e) {
+            // fallback
+            novosAvatares[avatarId] = `Avatar ${avatarId}`;
+          }
+        }
+      }
+    }
+
+    if (Object.keys(novosPerfis).length > 0) {
+      setNomesPerfis((prev) => ({ ...prev, ...novosPerfis }));
+    }
+    if (Object.keys(novosAvatares).length > 0) {
+      setNomesAvatares((prev) => ({ ...prev, ...novosAvatares }));
+    }
+  };
+
+  useEffect(() => {
+    if (historico.length > 0) {
+      resolverNomes(historico);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historico]);
+
+  const carregarAmigos = async () => {
+    if (!userEmail) return;
+    setCarregandoAmigos(true);
+    try {
+      const lista = await usuarioService.listarAmigos(userEmail);
+      setAmigos(lista);
+      const perfisEncontrados: Record<string, number> = {};
+      for (const amigo of lista) {
+        try {
+          const perfil = await perfilService.obterPorEmail(amigo.usuarioEmail);
+          perfisEncontrados[amigo.usuarioEmail] = perfil.id;
+          setNomesPerfis((prev) => ({ ...prev, [perfil.id]: perfil.username }));
+        } catch (e) {
+          console.warn('Perfil não encontrado para amigo', amigo.usuarioEmail);
+        }
+      }
+      if (Object.keys(perfisEncontrados).length > 0) {
+        setPerfilAmigoPorEmail((prev) => ({ ...prev, ...perfisEncontrados }));
+      }
+    } catch (e) {
+      console.error('Erro ao carregar amigos', e);
+    } finally {
+      setCarregandoAmigos(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userEmail) {
+      carregarAmigos();
+    }
+  }, [userEmail]);
+
+  useEffect(() => {
+    if (perfilId) {
+      avatarService
+        .obterPorPerfilId(perfilId)
+        .then((a) => setAvatarUsuarioId(a.id))
+        .catch(() => {});
+    }
+  }, [perfilId]);
+
+  useEffect(() => {
+    if (perfilId && avatarUsuarioId) {
+      carregarHistorico();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avatarUsuarioId]);
+
+  const handleIniciarDuelo = async (desafiadoPerfilId: number, nomeDesafiado: string) => {
+    if (!perfilId) {
+      setErro('Perfil não identificado. Faça login novamente.');
+      return;
+    }
+    try {
+      const resultado = await dueloService.realizarDuelo(perfilId, desafiadoPerfilId);
+      setResultadoDuelo(resultado.resultado?.toLowerCase().includes('vitoria') ? 'vitoria' : 'derrota');
+      setModalResultadoAberto(true);
+      await carregarHistorico();
+    } catch (error: any) {
+      console.error('Erro ao iniciar duelo', error);
+      const msgBackend = error?.response?.data?.message;
+      setErro(msgBackend || `Não foi possível duelar com ${nomeDesafiado}.`);
+    }
   };
 
   return (
@@ -191,14 +309,45 @@ export function ArenaDuelos() {
           </div>
 
           {/* Botão Iniciar Duelo */}
-          <Button
-            onClick={handleIniciarDuelo}
-            size="lg"
-            className="w-full"
-          >
-            <Sword className="h-5 w-5 mr-2" />
-            Iniciar duelo contra {oponenteAtual}
-          </Button>
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold">Escolha um amigo para duelar</h3>
+            {carregandoAmigos ? (
+              <p className="text-sm text-muted-foreground">Carregando amigos...</p>
+            ) : amigos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum amigo encontrado.</p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {amigos.map((amigo) => (
+                  <Card key={amigo.usuarioEmail} className="hover:border-primary transition-colors">
+                    <CardContent className="p-4 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{amigo.nome || amigo.usuarioEmail}</p>
+                        <p className="text-xs text-muted-foreground truncate">{amigo.usuarioEmail}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          handleIniciarDuelo(
+                            perfilAmigoPorEmail[amigo.usuarioEmail],
+                            amigo.nome || amigo.usuarioEmail
+                          )
+                        }
+                        disabled={!perfilAmigoPorEmail[amigo.usuarioEmail]}
+                        title={
+                          !perfilAmigoPorEmail[amigo.usuarioEmail]
+                            ? 'Perfil não encontrado para este amigo'
+                            : 'Iniciar duelo'
+                        }
+                      >
+                        <Sword className="h-4 w-4 mr-2" />
+                        Duelar
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Histórico de Duelos */}
           <Card>
@@ -206,41 +355,55 @@ export function ArenaDuelos() {
               <CardTitle>Histórico de Duelos</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {historicoDuelos.map((duelo) => (
-                  <div
-                    key={duelo.id}
-                    className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                  >
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src="" alt={duelo.oponente} />
-                      <AvatarFallback className="bg-muted">
-                        <X className="h-6 w-6 text-muted-foreground" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <div>
-                          <p className="font-semibold">{duelo.oponente}</p>
-                          <p className="text-sm text-muted-foreground">{duelo.data}</p>
+              {erro && <p className="text-sm text-destructive mb-2">{erro}</p>}
+              {carregando ? (
+                <p className="text-sm text-muted-foreground">Carregando...</p>
+              ) : historico.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum duelo registrado ainda.</p>
+              ) : (
+                <div className="space-y-4">
+                  {historico.map((duelo) => {
+                    const voceGanhou = duelo.resultado?.toLowerCase() === 'vitoria';
+                    const dataStr = duelo.dataDuelo
+                      ? new Date(duelo.dataDuelo).toLocaleString('pt-BR')
+                      : '';
+                    const nome1 =
+                      (duelo.avatar1Id && nomesAvatares[duelo.avatar1Id]) ||
+                      `Avatar ${duelo.avatar1Id}`;
+                    const nome2 =
+                      (duelo.avatar2Id && nomesAvatares[duelo.avatar2Id]) ||
+                      `Avatar ${duelo.avatar2Id}`;
+                    return (
+                      <div
+                        key={duelo.id ?? `${duelo.avatar1Id}-${duelo.avatar2Id}-${duelo.dataDuelo}`}
+                        className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                      >
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback className="bg-muted">
+                            <Sword className="h-6 w-6 text-muted-foreground" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <div>
+                              <p className="font-semibold">Duelo #{duelo.id ?? '—'}</p>
+                              <p className="text-sm text-muted-foreground">{dataStr}</p>
+                            </div>
+                            <Badge variant={voceGanhou ? 'default' : 'destructive'}>
+                              {voceGanhou ? 'Vitória' : 'Derrota'}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm mt-2 text-muted-foreground">
+                            <span>{nome1}</span>
+                            <span>vs</span>
+                            <span>{nome2}</span>
+                          </div>
                         </div>
-                        <Badge
-                          variant={duelo.resultado === 'vitoria' ? 'default' : 'destructive'}
-                        >
-                          {duelo.resultado === 'vitoria' ? 'Vitória' : 'Derrota'}
-                        </Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-sm mt-2">
-                        <span className="font-medium">{duelo.oponente}</span>
-                        <span className="text-muted-foreground">{duelo.pontuacaoOponente}</span>
-                        <span className="text-muted-foreground">X</span>
-                        <span className="text-muted-foreground">{duelo.pontuacaoUsuario}</span>
-                        <span className="font-medium">Você</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
