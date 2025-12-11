@@ -428,6 +428,14 @@ export const conquistaService = {
 };
 
 // Avatar
+export interface AcessorioResumo {
+  id: number;
+  icone: string;
+  imagem: string;
+  nome: string;
+  preco: number;
+}
+
 export interface AvatarResumo {
   id: number;
   perfilId: number;
@@ -435,6 +443,7 @@ export interface AvatarResumo {
   experiencia: number;
   forca: number;
   dinheiro: number;
+  acessorios: AcessorioResumo[];
 }
 
 export interface AtributosCalculados {
@@ -754,12 +763,6 @@ export const equipeService = {
     return response.data;
   },
 
-  isMembro: async (equipeId: number, usuarioEmail: string): Promise<boolean> => {
-    const emailEncoded = encodeURIComponent(usuarioEmail);
-    const response = await api.get<boolean>(`/equipes/${equipeId}/is-membro/${emailEncoded}`);
-    return response.data;
-  },
-
   listarMembros: async (equipeId: number): Promise<string[]> => {
     const response = await api.get<string[]>(`/equipes/${equipeId}/membros`);
     return response.data;
@@ -850,6 +853,77 @@ export const rivalidadeService = {
   obterComparacao: async (rivalidadeId: number, perfilId: number): Promise<ComparacaoRivalidade> => {
     const response = await api.get<ComparacaoRivalidade>(`/rivalidades/${rivalidadeId}/comparacao?perfilId=${perfilId}`);
     return response.data;
+  },
+};
+
+// Loja
+export interface AcessorioResumoLoja {
+  id: number;
+  icone: string;
+  imagem: string;
+  nome: string;
+  preco: number;
+}
+
+export interface ItemLojaResumo {
+  id: number;
+  icone: string;
+  imagem: string;
+  nome: string;
+  preco: number;
+  acessorios: AcessorioResumoLoja[];
+}
+
+// Acessório
+export interface AcessorioResumo {
+  id: number;
+  icone: string;
+  imagem: string;
+  nome: string;
+  preco: number;
+}
+
+export const acessorioService = {
+  listarTodos: async (): Promise<AcessorioResumo[]> => {
+    const response = await api.get<AcessorioResumo[]>('/acessorios');
+    return response.data;
+  },
+
+  obterPorId: async (id: number): Promise<AcessorioResumo> => {
+    const response = await api.get<AcessorioResumo>(`/acessorios/${id}`);
+    return response.data;
+  },
+};
+
+export const lojaService = {
+  listarItens: async (categoria?: string): Promise<ItemLojaResumo[]> => {
+    // Usar o endpoint de acessórios diretamente
+    const acessorios = await acessorioService.listarTodos();
+    // Converter para ItemLojaResumo
+    return acessorios.map(acessorio => ({
+      id: acessorio.id,
+      icone: acessorio.icone,
+      imagem: acessorio.imagem,
+      nome: acessorio.nome,
+      preco: acessorio.preco,
+      acessorios: [] // Lista vazia pois não há mais acessórios aninhados
+    }));
+  },
+
+  obterPorId: async (id: number): Promise<ItemLojaResumo> => {
+    const acessorio = await acessorioService.obterPorId(id);
+    return {
+      id: acessorio.id,
+      icone: acessorio.icone,
+      imagem: acessorio.imagem,
+      nome: acessorio.nome,
+      preco: acessorio.preco,
+      acessorios: []
+    };
+  },
+
+  comprarItem: async (avatarId: number, acessorioId: number): Promise<void> => {
+    await api.post('/loja/comprar', { avatarId, acessorioId });
   },
 };
 

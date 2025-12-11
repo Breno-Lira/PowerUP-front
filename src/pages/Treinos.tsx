@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, Plus, Pencil, Trash2, Play, Check, Camera, X, Loader2 } from 'lucide-react';
+import { Menu, Plus, Pencil, Trash2, Play, Check, Camera, X, Loader2, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,8 +29,10 @@ import {
   ExercicioResumo,
   TipoTreino,
   FrequenciaResumo,
-  Dias
+  Dias,
+  PerfilResumo
 } from '@/services/api';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function Treinos() {
   const navigate = useNavigate();
@@ -71,6 +73,7 @@ export function Treinos() {
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
+  const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
 
   const carregarDados = async () => {
     if (!userEmail) return;
@@ -138,6 +141,15 @@ export function Treinos() {
       console.error('Erro ao carregar frequências:', error);
     }
   };
+
+  // Carregar perfil para obter foto
+  useEffect(() => {
+    if (userData?.perfilId) {
+      perfilService.obterPorId(userData.perfilId)
+        .then(setPerfilUsuario)
+        .catch(console.error);
+    }
+  }, [userData?.perfilId]);
 
   // Carregar planos de treino e exercícios
   useEffect(() => {
@@ -442,7 +454,28 @@ export function Treinos() {
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
-              <nav className="mt-8 space-y-2">
+              
+              {/* Informações do usuário logado */}
+              <div className="mt-6 mb-6 pb-6 border-b">
+                <div className="flex items-center gap-3 px-4">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={perfilUsuario?.foto || undefined} alt={perfilUsuario?.username || 'Usuário'} />
+                    <AvatarFallback className="bg-primary/10">
+                      <User className="h-5 w-5 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">
+                      {perfilUsuario?.username || userData?.username || userEmail || 'Usuário'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {userEmail || 'email@exemplo.com'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <nav className="space-y-2">
                 {menuItems.map((item) => (
                   <button
                     key={item.path}

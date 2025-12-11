@@ -360,12 +360,15 @@ export function Perfil() {
               {/* Informações do usuário logado */}
               <div className="mt-6 mb-6 pb-6 border-b">
                 <div className="flex items-center gap-3 px-4">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={perfilResumo?.foto || undefined} alt={perfilResumo?.username || 'Usuário'} />
+                    <AvatarFallback className="bg-primary/10">
+                      <User className="h-5 w-5 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">
-                      {userData.username || userEmail || 'Usuário'}
+                      {perfilResumo?.username || userData.username || userEmail || 'Usuário'}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
                       {userEmail || 'email@exemplo.com'}

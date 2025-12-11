@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Sheet,
   SheetContent,
@@ -11,6 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { perfilService, PerfilResumo } from '@/services/api';
 
 interface HomeData {
   xpAtual: number;
@@ -26,12 +28,20 @@ export function Home() {
   const navigate = useNavigate();
   const [home, setHome] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [perfil, setPerfil] = useState<PerfilResumo | null>(null);
   
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData.email;
 
   useEffect(() => {
+    // Carregar perfil para obter foto
+    if (userData.perfilId) {
+      perfilService.obterPorId(userData.perfilId)
+        .then(setPerfil)
+        .catch(console.error);
+    }
+
     // Dados mockados baseados no wireframe
     const dadosMock: HomeData = {
       xpAtual: 750,
@@ -98,12 +108,15 @@ export function Home() {
               {/* Informações do usuário logado */}
               <div className="mt-6 mb-6 pb-6 border-b">
                 <div className="flex items-center gap-3 px-4">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={perfil?.foto || undefined} alt={perfil?.username || 'Usuário'} />
+                    <AvatarFallback className="bg-primary/10">
+                      <User className="h-5 w-5 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">
-                      {userData.username || userEmail || 'Usuário'}
+                      {perfil?.username || userData.username || userEmail || 'Usuário'}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
                       {userEmail || 'email@exemplo.com'}

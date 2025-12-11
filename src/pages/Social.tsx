@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Menu, TrendingUp, Copy, Check, User, Loader2, UserPlus, X } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { usuarioService, UsuarioResumo, dueloService, perfilService, DueloResumo, AtributosCalculados, equipeService, EquipeResumo, CriarEquipeRequest, rivalidadeService, RivalidadeResumo, ComparacaoRivalidade } from '@/services/api';
+import { usuarioService, UsuarioResumo, dueloService, perfilService, DueloResumo, AtributosCalculados, equipeService, EquipeResumo, CriarEquipeRequest, rivalidadeService, RivalidadeResumo, ComparacaoRivalidade, frequenciaService, planoTreinoService } from '@/services/api';
 import { Sword, UserMinus } from 'lucide-react';
 import {
   Dialog,
@@ -64,6 +65,12 @@ export function Social() {
   const [enviandoConvite, setEnviandoConvite] = useState(false);
   const [erroRivalidade, setErroRivalidade] = useState<string | null>(null);
   const [perfisAmigos, setPerfisAmigos] = useState<Map<string, number>>(new Map());
+  
+  // Estados para desempenho/frequência
+  const [frequenciaSemanal, setFrequenciaSemanal] = useState(0);
+  const [metaSemanal, setMetaSemanal] = useState(0);
+  const [carregandoDesempenho, setCarregandoDesempenho] = useState(false);
+  const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
   
   // Obter email do usuário logado
   const userEmail = JSON.parse(localStorage.getItem('user') || '{}')?.email;
@@ -236,6 +243,59 @@ export function Social() {
 
     carregarComparacao();
   }, [rivalidadeAtiva, userPerfilId]);
+
+  // Carregar perfil para obter foto
+  useEffect(() => {
+    if (userPerfilId) {
+      perfilService.obterPorId(userPerfilId)
+        .then(setPerfilUsuario)
+        .catch(console.error);
+    }
+  }, [userPerfilId]);
+
+  // Carregar desempenho (frequência semanal)
+  useEffect(() => {
+    const carregarDesempenho = async () => {
+      if (!userPerfilId || !userEmail) return;
+      
+      setCarregandoDesempenho(true);
+      try {
+        // Carregar planos de treino ativos
+        const planos = await planoTreinoService.listarPorUsuario(userEmail);
+        const planosAtivos = planos.filter(p => p.estado === 'Ativo');
+        
+        if (planosAtivos.length === 0) {
+          setFrequenciaSemanal(0);
+          setMetaSemanal(0);
+          return;
+        }
+        
+        // Calcular meta semanal (soma de todos os dias de todos os planos ativos)
+        const totalDias = planosAtivos.reduce((sum, p) => sum + p.dias.length, 0);
+        setMetaSemanal(totalDias);
+        
+        // Calcular frequência semanal de todos os planos ativos
+        const frequenciasSemanais = await Promise.all(
+          planosAtivos
+            .filter(plano => plano.id != null)
+            .map(plano => 
+              frequenciaService.calcularFrequenciaSemanal(userPerfilId, plano.id!)
+                .catch(() => 0)
+            )
+        );
+        const frequenciaTotal = frequenciasSemanais.reduce((sum, freq) => sum + freq, 0);
+        setFrequenciaSemanal(frequenciaTotal);
+      } catch (error: any) {
+        console.error('Erro ao carregar desempenho:', error);
+        setFrequenciaSemanal(0);
+        setMetaSemanal(0);
+      } finally {
+        setCarregandoDesempenho(false);
+      }
+    };
+
+    carregarDesempenho();
+  }, [userPerfilId, userEmail]);
 
   const carregarRivalidades = async () => {
     if (!userPerfilId) return;
@@ -557,12 +617,15 @@ export function Social() {
               {/* Informações do usuário logado */}
               <div className="mt-6 mb-6 pb-6 border-b">
                 <div className="flex items-center gap-3 px-4">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={perfilUsuario?.foto || undefined} alt={perfilUsuario?.username || 'Usuário'} />
+                    <AvatarFallback className="bg-primary/10">
+                      <User className="h-5 w-5 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">
-                      {userData.username || userEmail || 'Usuário'}
+                      {perfilUsuario?.username || userData.username || userEmail || 'Usuário'}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
                       {userEmail || 'email@exemplo.com'}
@@ -1092,9 +1155,13 @@ export function Social() {
                 </div>
                 <div>
                   <p className="font-semibold mb-1">Desempenho</p>
-                  <p className="text-sm text-muted-foreground">
-                    sequencia semanal : 5/7
-                  </p>
+                  {carregandoDesempenho ? (
+                    <p className="text-sm text-muted-foreground">Carregando...</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      sequencia semanal : {frequenciaSemanal}/{metaSemanal}
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>

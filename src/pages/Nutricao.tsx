@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, Plus, Trash2, X, Search, ChevronDown } from 'lucide-react';
+import { Menu, Plus, Trash2, X, Search, ChevronDown, User } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,10 +24,12 @@ import {
 } from '@/components/ui/dialog';
 import {
   nutricaoService,
+  perfilService,
   type Objetivo,
   type TipoRefeicao,
   type PlanoNutricional,
   type Alimento,
+  type PerfilResumo,
 } from '@/services/api';
 
 interface AlimentoDisplay {
@@ -67,6 +70,12 @@ const TIPO_REFEICAO_MAP: Record<TipoRefeicao, { nome: string; horario: string }>
 
 export function Nutricao() {
   const navigate = useNavigate();
+  
+  // Obter dados do usuário logado
+  const userData = JSON.parse(localStorage.getItem('user') || '{}');
+  const userEmail = userData?.email;
+  const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [nutricao, setNutricao] = useState<NutricaoData>({
@@ -112,9 +121,14 @@ export function Nutricao() {
     { label: 'Social', path: '/social' },
   ];
 
-  const userEmail = JSON.parse(localStorage.getItem('user') || '{}')?.email;
-
   useEffect(() => {
+    // Carregar perfil para obter foto
+    if (userData?.perfilId) {
+      perfilService.obterPorId(userData.perfilId)
+        .then(setPerfilUsuario)
+        .catch(console.error);
+    }
+
     if (userEmail) {
       carregarDados();
       carregarAlimentos();
@@ -122,7 +136,7 @@ export function Nutricao() {
       setError('Usuário não autenticado');
       setLoading(false);
     }
-  }, [userEmail]);
+  }, [userEmail, userData?.perfilId]);
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -520,7 +534,28 @@ export function Nutricao() {
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
-              <nav className="mt-8 space-y-2">
+              
+              {/* Informações do usuário logado */}
+              <div className="mt-6 mb-6 pb-6 border-b">
+                <div className="flex items-center gap-3 px-4">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={perfilUsuario?.foto || undefined} alt={perfilUsuario?.username || 'Usuário'} />
+                    <AvatarFallback className="bg-primary/10">
+                      <User className="h-5 w-5 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">
+                      {perfilUsuario?.username || userData?.username || userEmail || 'Usuário'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {userEmail || 'email@exemplo.com'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <nav className="space-y-2">
                 {menuItems.map((item) => (
                   <button
                     key={item.path}
