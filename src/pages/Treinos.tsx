@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import {
   Sheet,
   SheetContent,
@@ -30,7 +31,10 @@ import {
   TipoTreino,
   FrequenciaResumo,
   Dias,
-  PerfilResumo
+  PerfilResumo,
+  treinoProgressoService,
+  TreinoProgressoRegistro,
+  RegistrarTreinoProgressoRequest
 } from '@/services/api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserInfoHeader } from '@/components/UserInfoHeader';
@@ -52,7 +56,17 @@ export function Treinos() {
     distancia: '',
     tempo: '',
   });
-  const [periodoGrafico, setPeriodoGrafico] = useState<'5dias' | 'mensal' | 'anual'>('5dias');
+  const [modalProgressoAberto, setModalProgressoAberto] = useState(false);
+  const [registroProgresso, setRegistroProgresso] = useState({
+    exercicioId: '',
+    dataRegistro: '',
+    pesoKg: '',
+    repeticoes: '',
+    series: '',
+  });
+  const [salvandoProgresso, setSalvandoProgresso] = useState(false);
+  const [progresso, setProgresso] = useState<Record<number, TreinoProgressoRegistro[]>>({});
+
   const [metaSemanal, setMetaSemanal] = useState(5);
   const [mostrarCheckin, setMostrarCheckin] = useState(true);
   const [planosAtivos, setPlanosAtivos] = useState<PlanoTreinoResumo[]>([]);
@@ -143,6 +157,54 @@ export function Treinos() {
     }
   };
 
+  const carregarProgresso = async () => {
+    if (!perfilId) return;
+    try {
+      const registros = await treinoProgressoService.listar(perfilId);
+      const agrupado: Record<number, TreinoProgressoRegistro[]> = {};
+      registros.forEach((r) => {
+        if (!agrupado[r.exercicioId]) agrupado[r.exercicioId] = [];
+        agrupado[r.exercicioId].push(r);
+      });
+      setProgresso(agrupado);
+    } catch (error) {
+      console.error('Erro ao carregar progresso:', error);
+    }
+  };
+
+  const registrarProgresso = async () => {
+    if (!perfilId) {
+      setErro('Perfil não identificado.');
+      return;
+    }
+    if (!registroProgresso.exercicioId || !registroProgresso.dataRegistro) {
+      setErro('Selecione um exercício e uma data.');
+      return;
+    }
+    setSalvandoProgresso(true);
+    setErro(null);
+    try {
+      const payload = {
+        perfilId,
+        exercicioId: Number(registroProgresso.exercicioId),
+        dataRegistro: registroProgresso.dataRegistro,
+        pesoKg: registroProgresso.pesoKg ? Number(registroProgresso.pesoKg) : null,
+        repeticoes: registroProgresso.repeticoes ? Number(registroProgresso.repeticoes) : null,
+        series: registroProgresso.series ? Number(registroProgresso.series) : null,
+      } as RegistrarTreinoProgressoRequest;
+      await treinoProgressoService.registrar(payload);
+      setMensagemSucesso('Progresso registrado!');
+      setModalProgressoAberto(false);
+      setRegistroProgresso({ exercicioId: '', dataRegistro: '', pesoKg: '', repeticoes: '', series: '' });
+      await carregarProgresso();
+    } catch (error) {
+      console.error('Erro ao registrar progresso:', error);
+      setErro('Não foi possível registrar o progresso.');
+    } finally {
+      setSalvandoProgresso(false);
+    }
+  };
+
   // Carregar perfil para obter foto
   useEffect(() => {
     if (userData?.perfilId) {
@@ -173,6 +235,13 @@ export function Treinos() {
     const totalDias = planosAtivos.reduce((sum, p) => sum + p.dias.length, 0);
     setMetaSemanal(totalDias);
   }, [planosAtivos]);
+
+  useEffect(() => {
+    if (perfilId) {
+      carregarProgresso();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfilId]);
 
   const menuItems = [
     { label: 'Home', path: '/home' },
@@ -736,142 +805,107 @@ export function Treinos() {
 
           <TabsContent value="progresso" className="mt-6">
             <div className="space-y-6">
-              {/* Header Evolução */}
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Evolução</h2>
-                <Button size="sm" className="gap-2">
+                <Button size="sm" className="gap-2" onClick={() => setModalProgressoAberto(true)}>
                   <Plus className="h-4 w-4" />
                   Registrar
                 </Button>
               </div>
 
-              {/* Gráfico de Progresso */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Peito - supino reto</CardTitle>
-                    <div className="flex gap-2">
-                      <Button
-                        variant={periodoGrafico === '5dias' ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setPeriodoGrafico('5dias')}
-                      >
-                        5 dias
-                      </Button>
-                      <Button
-                        variant={periodoGrafico === 'mensal' ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setPeriodoGrafico('mensal')}
-                      >
-                        Mensal
-                      </Button>
-                      <Button
-                        variant={periodoGrafico === 'anual' ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setPeriodoGrafico('anual')}
-                      >
-                        Anual
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {/* Gráfico de Linha Simples */}
-                  <div className="relative h-64 w-full">
-                    {/* Eixos e Grid */}
-                    <svg className="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
-                      {/* Grid horizontal */}
-                      {[0, 20, 40, 60, 80].map((value, index) => {
-                        const y = 200 - (value / 80) * 200;
-                        return (
-                          <g key={`grid-${value}`}>
-                            <line
-                              x1="40"
-                              y1={y}
-                              x2="400"
-                              y2={y}
-                              stroke="currentColor"
-                              strokeWidth="1"
-                              strokeDasharray="4 4"
-                              className="text-muted-foreground opacity-30"
+              {Object.keys(progresso).length === 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Sem registros ainda</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Adicione um exercício ao tracker para acompanhar peso, repetições e séries ao longo do tempo.
+                    </p>
+                    <Button onClick={() => setModalProgressoAberto(true)} size="sm" className="w-fit">
+                      Registrar primeiro progresso
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                Object.entries(progresso).map(([exercicioIdStr, registros]) => {
+                  const exercicioId = Number(exercicioIdStr);
+                  const exercicio = exercicios.find((e) => e.id === exercicioId);
+                  const dataChart = [...registros]
+                    .sort((a, b) => new Date(a.dataRegistro).getTime() - new Date(b.dataRegistro).getTime())
+                    .map((r) => ({
+                      ...r,
+                      pesoKg: r.pesoKg ?? 0,
+                      repeticoes: r.repeticoes ?? 0,
+                      series: r.series ?? 0,
+                    }));
+
+                  return (
+                    <Card key={exercicioId}>
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          {exercicio?.nome || `Exercício ${exercicioId}`}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={dataChart}>
+                            <defs>
+                              <linearGradient id={`pesoGrad-${exercicioId}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+                              </linearGradient>
+                              <linearGradient id={`repGrad-${exercicioId}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                              </linearGradient>
+                              <linearGradient id={`seriesGrad-${exercicioId}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
+                                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" className="text-muted-foreground" />
+                            <XAxis dataKey="dataRegistro" tick={{ fontSize: 12 }} />
+                            <YAxis tick={{ fontSize: 12 }} />
+                            <Tooltip />
+                            <Legend />
+                            <Area
+                              type="monotone"
+                              dataKey="pesoKg"
+                              name="Peso (kg)"
+                              stroke="hsl(var(--primary))"
+                              fill={`url(#pesoGrad-${exercicioId})`}
+                              strokeWidth={2}
+                              dot={false}
+                              connectNulls
                             />
-                            <text
-                              x="35"
-                              y={y + 4}
-                              textAnchor="end"
-                              className="text-xs fill-muted-foreground"
-                            >
-                              {value}
-                            </text>
-                          </g>
-                        );
-                      })}
-
-                      {/* Dados do gráfico (5 dias) */}
-                      {periodoGrafico === '5dias' && (() => {
-                        // Valores: 68, 68, 72, 78, 78 (convertendo para coordenadas Y)
-                        // Y máximo = 80, altura do gráfico = 200
-                        const valores = [68, 68, 72, 78, 78];
-                        const datas = ['30/08', '02/09', '04/09', '06/09', '08/09'];
-                        const pontos = valores.map((valor, index) => {
-                          const x = 60 + (index * 90);
-                          const y = 200 - (valor / 80) * 200;
-                          return { x, y, valor, date: datas[index] };
-                        });
-                        const pontosString = pontos.map(p => `${p.x},${p.y}`).join(' ');
-
-                        return (
-                          <>
-                            {/* Linha do gráfico */}
-                            <polyline
-                              points={pontosString}
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              className="text-primary"
+                            <Area
+                              type="monotone"
+                              dataKey="repeticoes"
+                              name="Repetições"
+                              stroke="#10b981"
+                              fill={`url(#repGrad-${exercicioId})`}
+                              strokeWidth={2}
+                              dot={false}
+                              connectNulls
                             />
-                            {/* Pontos do gráfico */}
-                            {pontos.map((point, index) => (
-                              <g key={`point-${index}`}>
-                                <circle
-                                  cx={point.x}
-                                  cy={point.y}
-                                  r="4"
-                                  fill="currentColor"
-                                  className="text-primary"
-                                />
-                                <text
-                                  x={point.x}
-                                  y={195}
-                                  textAnchor="middle"
-                                  className="text-xs fill-muted-foreground"
-                                >
-                                  {point.date}
-                                </text>
-                              </g>
-                            ))}
-                          </>
-                        );
-                      })()}
-
-                      {/* Placeholder para outros períodos */}
-                      {periodoGrafico !== '5dias' && (
-                        <text
-                          x="200"
-                          y="100"
-                          textAnchor="middle"
-                          className="text-sm fill-muted-foreground"
-                        >
-                          Dados para {periodoGrafico === 'mensal' ? 'período mensal' : 'período anual'} em breve
-                        </text>
-                      )}
-                    </svg>
-                  </div>
-                </CardContent>
-              </Card>
+                            <Area
+                              type="monotone"
+                              dataKey="series"
+                              name="Séries"
+                              stroke="#f59e0b"
+                              fill={`url(#seriesGrad-${exercicioId})`}
+                              strokeWidth={2}
+                              dot={false}
+                              connectNulls
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
             </div>
           </TabsContent>
 
@@ -1139,6 +1173,89 @@ export function Treinos() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modal de registrar progresso */}
+      <Dialog open={modalProgressoAberto} onOpenChange={setModalProgressoAberto}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Registrar progresso</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="exercicio-progresso">Exercício</Label>
+              <select
+                id="exercicio-progresso"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={registroProgresso.exercicioId}
+                onChange={(e) => setRegistroProgresso({ ...registroProgresso, exercicioId: e.target.value })}
+              >
+                <option value="">Selecione um exercício</option>
+                {exercicios.map((exercicio) => (
+                  <option key={exercicio.id} value={exercicio.id}>
+                    {exercicio.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="data-registro">Data</Label>
+              <Input
+                id="data-registro"
+                type="date"
+                value={registroProgresso.dataRegistro}
+                onChange={(e) => setRegistroProgresso({ ...registroProgresso, dataRegistro: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="peso-kg">Peso (kg)</Label>
+                <Input
+                  id="peso-kg"
+                  type="number"
+                  step="0.1"
+                  placeholder="Ex: 80"
+                  value={registroProgresso.pesoKg}
+                  onChange={(e) => setRegistroProgresso({ ...registroProgresso, pesoKg: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repeticoes-prog">Repetições</Label>
+                <Input
+                  id="repeticoes-prog"
+                  type="number"
+                  placeholder="Ex: 10"
+                  value={registroProgresso.repeticoes}
+                  onChange={(e) => setRegistroProgresso({ ...registroProgresso, repeticoes: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="series-prog">Séries</Label>
+                <Input
+                  id="series-prog"
+                  type="number"
+                  placeholder="Ex: 4"
+                  value={registroProgresso.series}
+                  onChange={(e) => setRegistroProgresso({ ...registroProgresso, series: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <Button className="w-full" onClick={registrarProgresso} disabled={salvandoProgresso}>
+              {salvandoProgresso ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar registro'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Criar Novo Plano */}
       <Dialog open={modalNovoPlanoAberto} onOpenChange={handleFecharModalNovoPlano}>

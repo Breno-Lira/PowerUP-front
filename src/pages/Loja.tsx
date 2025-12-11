@@ -475,7 +475,7 @@ export function Loja() {
                             <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
                               {item.quantidade}
                             </span>
-                          </label>
+                            </label>
                         ))}
                       </div>
                     </div>

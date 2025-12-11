@@ -188,11 +188,11 @@ export function Grupo() {
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h1 className="text-3xl font-bold">Teams</h1>
-                <p className="text-muted-foreground mt-1">
-                  Join forces with friends and compete together
-                </p>
+            <div>
+              <h1 className="text-3xl font-bold">Teams</h1>
+              <p className="text-muted-foreground mt-1">
+                Join forces with friends and compete together
+              </p>
               </div>
             </div>
             <div className="flex gap-2">

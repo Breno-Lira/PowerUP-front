@@ -290,6 +290,27 @@ export interface AtributosCalculados {
   agilidade: number;
 }
 
+// Progresso de Treino
+export interface TreinoProgressoRegistro {
+  id: number;
+  perfilId: number;
+  exercicioId: number;
+  dataRegistro: string;
+  pesoKg?: number | null;
+  repeticoes?: number | null;
+  series?: number | null;
+  createdAt?: string;
+}
+
+export interface RegistrarTreinoProgressoRequest {
+  perfilId: number;
+  exercicioId: number;
+  dataRegistro: string; // formato yyyy-MM-dd
+  pesoKg?: number | null;
+  repeticoes?: number | null;
+  series?: number | null;
+}
+
 export const dueloService = {
   realizarDuelo: async (desafiantePerfilId: number, desafiadoPerfilId: number): Promise<DueloResumo> => {
     const response = await api.post<DueloResumo>('/duelos', {
@@ -472,6 +493,20 @@ export const avatarService = {
 
   obterAtributos: async (avatarId: number): Promise<AtributosCalculados> => {
     const response = await api.get<AtributosCalculados>(`/avatars/${avatarId}/atributos`);
+    return response.data;
+  },
+};
+
+export const treinoProgressoService = {
+  listar: async (perfilId: number, exercicioId?: number): Promise<TreinoProgressoRegistro[]> => {
+    const params = new URLSearchParams();
+    params.append('perfilId', perfilId.toString());
+    if (exercicioId) params.append('exercicioId', exercicioId.toString());
+    const response = await api.get<TreinoProgressoRegistro[]>(`/treinos/progresso?${params.toString()}`);
+    return response.data;
+  },
+  registrar: async (payload: RegistrarTreinoProgressoRequest): Promise<TreinoProgressoRegistro> => {
+    const response = await api.post<TreinoProgressoRegistro>('/treinos/progresso', payload);
     return response.data;
   },
 };
