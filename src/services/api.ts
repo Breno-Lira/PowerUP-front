@@ -768,8 +768,8 @@ export const equipeService = {
     return response.data;
   },
 
-  obterRanking: async (equipeId: number): Promise<MembroRanking[]> => {
-    const response = await api.get<MembroRanking[]>(`/equipes/${equipeId}/ranking`);
+  obterRanking: async (equipeId: number): Promise<RankingEntry[]> => {
+    const response = await api.get<RankingEntry[]>(`/equipes/${equipeId}/ranking`);
     return response.data;
   },
 };
@@ -802,6 +802,34 @@ export interface ComparacaoRivalidade {
   duelosGanhosUsuario: number;
   duelosGanhosRival: number;
 }
+
+// Ranking
+export interface RankingEntry {
+  perfilId: number | null;
+  email: string | null;
+  username: string | null;
+  foto: string | null;
+  nivel: number;
+  xpTotal: number;
+  posicao: number;
+  equipeId?: number | null;
+}
+
+export const rankingService = {
+  global: async (): Promise<RankingEntry[]> => {
+    const response = await api.get<RankingEntry[]>('/ranking/global');
+    return response.data;
+  },
+  amigos: async (email: string): Promise<RankingEntry[]> => {
+    const emailEncoded = encodeURIComponent(email);
+    const response = await api.get<RankingEntry[]>(`/ranking/amigos/${emailEncoded}`);
+    return response.data;
+  },
+  equipe: async (equipeId: number): Promise<RankingEntry[]> => {
+    const response = await api.get<RankingEntry[]>(`/ranking/equipe/${equipeId}`);
+    return response.data;
+  },
+};
 
 export interface EnviarConviteRequest {
   perfil1Id: number;

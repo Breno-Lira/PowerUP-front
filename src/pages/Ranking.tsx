@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Menu, TrendingUp, Crown, Check, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,21 +12,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { perfilService, PerfilResumo } from '@/services/api';
+import {
+  perfilService,
+  PerfilResumo,
+  rankingService,
+  RankingEntry,
+  equipeService,
+  EquipeResumo,
+} from '@/services/api';
 
 interface TituloRank {
   nome: string;
   xpNecessario: number;
-}
-
-interface JogadorRanking {
-  id: number;
-  nome: string;
-  nivel: number;
-  titulo: string;
-  xp: number;
-  posicao: number;
-  isUsuario: boolean;
 }
 
 export function Ranking() {
@@ -35,15 +32,19 @@ export function Ranking() {
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
-  
-  const [abaAtiva, setAbaAtiva] = useState<'global' | 'amigos' | 'equipes'>('global');
 
-  const posicaoUsuario = {
-    posicao: 12,
-    titulo: 'Dragão',
-    xp: 23700,
-    nivel: 40,
-  };
+  const [abaAtiva, setAbaAtiva] = useState<'global' | 'amigos' | 'equipes'>('global');
+  const [rankingGlobal, setRankingGlobal] = useState<RankingEntry[]>([]);
+  const [rankingAmigos, setRankingAmigos] = useState<RankingEntry[]>([]);
+  const [rankingEquipe, setRankingEquipe] = useState<RankingEntry[]>([]);
+  const [equipesUsuario, setEquipesUsuario] = useState<EquipeResumo[]>([]);
+  const [equipeSelecionada, setEquipeSelecionada] = useState<number | null>(null);
+  const [loading, setLoading] = useState<{ global: boolean; amigos: boolean; equipe: boolean }>({
+    global: false,
+    amigos: false,
+    equipe: false,
+  });
+  const [erro, setErro] = useState<string | null>(null);
 
   const titulosRank: TituloRank[] = [
     { nome: 'Camundongo', xpNecessario: 0 },
@@ -52,36 +53,6 @@ export function Ranking() {
     { nome: 'Lobo', xpNecessario: 5000 },
     { nome: 'Leão', xpNecessario: 10000 },
     { nome: 'Dragão', xpNecessario: 20000 },
-  ];
-
-  const rankingGlobal: JogadorRanking[] = [
-    {
-      id: 1,
-      nome: 'Ned',
-      nivel: 45,
-      titulo: 'Dragão',
-      xp: 25500,
-      posicao: 1,
-      isUsuario: false,
-    },
-    {
-      id: 2,
-      nome: 'Torres',
-      nivel: 43,
-      titulo: 'Dragão',
-      xp: 24000,
-      posicao: 2,
-      isUsuario: false,
-    },
-    {
-      id: 3,
-      nome: 'Você',
-      nivel: 40,
-      titulo: 'Dragão',
-      xp: 23700,
-      posicao: 12,
-      isUsuario: true,
-    },
   ];
 
   const menuItems = [
@@ -104,6 +75,92 @@ export function Ranking() {
     }
   }, [userData?.perfilId]);
 
+  useEffect(() => {
+    const carregarGlobal = async () => {
+      setLoading((prev) => ({ ...prev, global: true }));
+      setErro(null);
+      try {
+        const dados = await rankingService.global();
+        setRankingGlobal(dados);
+      } catch (e: any) {
+        setErro(e?.message || 'Erro ao carregar ranking global');
+      } finally {
+        setLoading((prev) => ({ ...prev, global: false }));
+      }
+    };
+    carregarGlobal();
+  }, []);
+
+  useEffect(() => {
+    const carregarEquipes = async () => {
+      if (!userEmail) return;
+      try {
+        const equipes = await equipeService.listarPorUsuario(userEmail);
+        setEquipesUsuario(equipes);
+        if (equipes.length > 0 && !equipeSelecionada) {
+          setEquipeSelecionada(equipes[0].id);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    carregarEquipes();
+  }, [userEmail, equipeSelecionada]);
+
+  useEffect(() => {
+    const carregarAmigos = async () => {
+      if (abaAtiva !== 'amigos' || !userEmail || rankingAmigos.length > 0) return;
+      setLoading((prev) => ({ ...prev, amigos: true }));
+      setErro(null);
+      try {
+        const dados = await rankingService.amigos(userEmail);
+        setRankingAmigos(dados);
+      } catch (e: any) {
+        setErro(e?.message || 'Erro ao carregar ranking de amigos');
+      } finally {
+        setLoading((prev) => ({ ...prev, amigos: false }));
+      }
+    };
+    carregarAmigos();
+  }, [abaAtiva, userEmail, rankingAmigos.length]);
+
+  useEffect(() => {
+    const carregarRankingEquipe = async () => {
+      if (abaAtiva !== 'equipes' || !equipeSelecionada) return;
+      setLoading((prev) => ({ ...prev, equipe: true }));
+      setErro(null);
+      try {
+        const dados = await rankingService.equipe(equipeSelecionada);
+        setRankingEquipe(dados);
+      } catch (e: any) {
+        setErro(e?.message || 'Erro ao carregar ranking da equipe');
+      } finally {
+        setLoading((prev) => ({ ...prev, equipe: false }));
+      }
+    };
+    carregarRankingEquipe();
+  }, [abaAtiva, equipeSelecionada]);
+
+  const posicaoUsuario = useMemo(() => {
+    if (!userEmail || rankingGlobal.length === 0) {
+      return null;
+    }
+    const entrada = rankingGlobal.find((r) => r.email === userEmail);
+    if (!entrada) return null;
+
+    const titulo = titulosRank.reduce((acc, t) => {
+      if (entrada.xpTotal >= t.xpNecessario) return t.nome;
+      return acc;
+    }, titulosRank[0].nome);
+
+    return {
+      posicao: entrada.posicao,
+      titulo,
+      xp: entrada.xpTotal,
+      nivel: entrada.nivel,
+    };
+  }, [rankingGlobal, userEmail, titulosRank]);
+
   const getIconePosicao = (posicao: number) => {
     if (posicao === 1) {
       return <Crown className="h-5 w-5 text-yellow-500" />;
@@ -121,6 +178,37 @@ export function Ranking() {
     if (posicao === 1) return 'bg-yellow-500 text-white';
     if (posicao === 2) return 'bg-gray-400 text-white';
     return 'bg-gray-300 text-gray-700';
+  };
+
+  const renderLinhaRanking = (entrada: RankingEntry) => {
+    const isUsuario = userEmail && entrada.email === userEmail;
+    return (
+      <div
+        key={`${entrada.perfilId}-${entrada.email}-${entrada.posicao}`}
+        className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${
+          isUsuario ? 'bg-green-100 border-2 border-green-500' : 'hover:bg-accent/50'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          {getIconePosicao(entrada.posicao)}
+          <Avatar className={`h-10 w-10 ${getCorAvatar(entrada.posicao, !!isUsuario)}`}>
+            <AvatarImage src={entrada.foto || ''} alt={entrada.username || entrada.email || 'Usuário'} />
+            <AvatarFallback className="text-sm font-bold">
+              {(entrada.username || entrada.email || '?').charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold">{entrada.username || entrada.email || 'Usuário'}</p>
+          <p className="text-sm text-muted-foreground">
+            Nível {entrada.nivel} · {entrada.xpTotal.toLocaleString('pt-BR')} XP
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="font-semibold">#{entrada.posicao}</p>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -187,27 +275,29 @@ export function Ranking() {
           </div>
 
           {/* Card Sua Posição Global */}
-          <Card className="bg-green-50 border-green-200">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-white" />
+          {posicaoUsuario && (
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center">
+                      <TrendingUp className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Sua Posição Global</p>
+                      <p className="text-lg font-semibold">
+                        #{posicaoUsuario.posicao} · {posicaoUsuario.titulo}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Sua Posição Global</p>
-                    <p className="text-lg font-semibold">
-                      #{posicaoUsuario.posicao} . {posicaoUsuario.titulo}
-                    </p>
+                  <div className="text-right">
+                    <p className="text-lg font-bold">{posicaoUsuario.xp.toLocaleString('pt-BR')} XP</p>
+                    <p className="text-sm text-muted-foreground">Nível {posicaoUsuario.nivel}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold">{posicaoUsuario.xp.toLocaleString('pt-BR')} XP</p>
-                  <p className="text-sm text-muted-foreground">Nível {posicaoUsuario.nivel}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Títulos de Rank */}
           <Card>
@@ -248,38 +338,13 @@ export function Ranking() {
             {/* Conteúdo Global */}
             <TabsContent value="global" className="mt-4">
               <Card>
-                <CardContent className="pt-6">
-                  <div className="space-y-3">
-                    {rankingGlobal.map((jogador) => (
-                      <div
-                        key={jogador.id}
-                        className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${
-                          jogador.isUsuario
-                            ? 'bg-green-100 border-2 border-green-500'
-                            : 'hover:bg-accent/50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {getIconePosicao(jogador.posicao)}
-                          <Avatar className={`h-10 w-10 ${getCorAvatar(jogador.posicao, jogador.isUsuario)}`}>
-                            <AvatarImage src="" alt={jogador.nome} />
-                            <AvatarFallback className="text-sm font-bold">
-                              {jogador.nome.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold">{jogador.nome}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Nível {jogador.nivel} . {jogador.titulo}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold">{jogador.xp.toLocaleString('pt-BR')} XP</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <CardContent className="pt-6 space-y-3">
+                  {loading.global && <p className="text-center text-muted-foreground">Carregando ranking global...</p>}
+                  {!loading.global && rankingGlobal.length === 0 && (
+                    <p className="text-center text-muted-foreground">Nenhum dado de ranking global disponível.</p>
+                  )}
+                  {erro && <p className="text-center text-red-500">{erro}</p>}
+                  {rankingGlobal.map((entrada) => renderLinhaRanking(entrada))}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -287,10 +352,13 @@ export function Ranking() {
             {/* Conteúdo Amigos */}
             <TabsContent value="amigos" className="mt-4">
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-center text-muted-foreground py-8">
-                    Ranking de amigos em breve
-                  </p>
+                <CardContent className="pt-6 space-y-3">
+                  {loading.amigos && <p className="text-center text-muted-foreground">Carregando ranking de amigos...</p>}
+                  {!loading.amigos && rankingAmigos.length === 0 && (
+                    <p className="text-center text-muted-foreground">Nenhum amigo encontrado ou sem dados.</p>
+                  )}
+                  {erro && <p className="text-center text-red-500">{erro}</p>}
+                  {rankingAmigos.map((entrada) => renderLinhaRanking(entrada))}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -298,10 +366,30 @@ export function Ranking() {
             {/* Conteúdo Equipes */}
             <TabsContent value="equipes" className="mt-4">
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-center text-muted-foreground py-8">
-                    Ranking de equipes em breve
-                  </p>
+                <CardContent className="pt-6 space-y-4">
+                  {equipesUsuario.length > 1 && (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-medium text-muted-foreground">Selecione a equipe</label>
+                      <select
+                        value={equipeSelecionada ?? ''}
+                        onChange={(e) => setEquipeSelecionada(Number(e.target.value))}
+                        className="w-full rounded-md border px-3 py-2 text-sm"
+                      >
+                        {equipesUsuario.map((eq) => (
+                          <option key={eq.id} value={eq.id}>
+                            {eq.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {loading.equipe && <p className="text-center text-muted-foreground">Carregando ranking da equipe...</p>}
+                  {!loading.equipe && rankingEquipe.length === 0 && (
+                    <p className="text-center text-muted-foreground">Nenhum dado de ranking para a equipe.</p>
+                  )}
+                  {erro && <p className="text-center text-red-500">{erro}</p>}
+                  {rankingEquipe.map((entrada) => renderLinhaRanking(entrada))}
                 </CardContent>
               </Card>
             </TabsContent>
