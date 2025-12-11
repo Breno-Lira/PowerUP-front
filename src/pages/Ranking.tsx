@@ -23,7 +23,7 @@ import {
 
 interface TituloRank {
   nome: string;
-  xpNecessario: number;
+  nivelMin: number;
 }
 
 export function Ranking() {
@@ -47,12 +47,12 @@ export function Ranking() {
   const [erro, setErro] = useState<string | null>(null);
 
   const titulosRank: TituloRank[] = [
-    { nome: 'Camundongo', xpNecessario: 0 },
-    { nome: 'Gato', xpNecessario: 1000 },
-    { nome: 'Cachorro', xpNecessario: 2500 },
-    { nome: 'Lobo', xpNecessario: 5000 },
-    { nome: 'Leão', xpNecessario: 10000 },
-    { nome: 'Dragão', xpNecessario: 20000 },
+    { nome: 'Camundongo', nivelMin: 1 },
+    { nome: 'Gato', nivelMin: 5 },
+    { nome: 'Cachorro', nivelMin: 10 },
+    { nome: 'Lobo', nivelMin: 15 },
+    { nome: 'Leão', nivelMin: 20 },
+    { nome: 'Dragão', nivelMin: 25 },
   ];
 
   const menuItems = [
@@ -149,7 +149,7 @@ export function Ranking() {
     if (!entrada) return null;
 
     const titulo = titulosRank.reduce((acc, t) => {
-      if (entrada.xpTotal >= t.xpNecessario) return t.nome;
+      if (entrada.nivel >= t.nivelMin) return t.nome;
       return acc;
     }, titulosRank[0].nome);
 
@@ -180,8 +180,21 @@ export function Ranking() {
     return 'bg-gray-300 text-gray-700';
   };
 
+  const getTituloPorNivel = (nivel: number) => {
+    let titulo = titulosRank[0].nome;
+    for (const t of titulosRank) {
+      if (nivel >= t.nivelMin) {
+        titulo = t.nome;
+      } else {
+        break;
+      }
+    }
+    return titulo;
+  };
+
   const renderLinhaRanking = (entrada: RankingEntry) => {
     const isUsuario = userEmail && entrada.email === userEmail;
+    const tituloRank = getTituloPorNivel(entrada.nivel);
     return (
       <div
         key={`${entrada.perfilId}-${entrada.email}-${entrada.posicao}`}
@@ -200,9 +213,14 @@ export function Ranking() {
         </div>
         <div className="flex-1">
           <p className="font-semibold">{entrada.username || entrada.email || 'Usuário'}</p>
-          <p className="text-sm text-muted-foreground">
-            Nível {entrada.nivel} · {entrada.xpTotal.toLocaleString('pt-BR')} XP
-          </p>
+          <div className="text-sm text-muted-foreground flex flex-wrap gap-2 items-center">
+            <span>Nível {entrada.nivel}</span>
+            <span>·</span>
+            <span>{entrada.xpTotal.toLocaleString('pt-BR')} XP</span>
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
+              {tituloRank}
+            </span>
+          </div>
         </div>
         <div className="text-right">
           <p className="font-semibold">#{entrada.posicao}</p>
@@ -313,7 +331,7 @@ export function Ranking() {
                   >
                     <span className="font-medium">{titulo.nome}</span>
                     <span className="text-sm text-muted-foreground">
-                      {titulo.xpNecessario.toLocaleString('pt-BR')} XP
+                      Nível mínimo: {titulo.nivelMin}
                     </span>
                   </div>
                 ))}
