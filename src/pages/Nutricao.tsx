@@ -168,7 +168,7 @@ export function Nutricao() {
     }
   };
 
-  const carregarDados = async () => {
+  const carregarDados = async (planoIdSelecionado?: number | null) => {
     if (!userEmail) return;
 
     try {
@@ -198,14 +198,19 @@ export function Nutricao() {
       if (planos.length > 0) {
         // Se não há plano selecionado, usar o último criado (maior ID)
         let planoAtivo: PlanoNutricional | undefined;
-        if (planoSelecionadoId) {
+        const idParaUsar = planoIdSelecionado !== undefined ? planoIdSelecionado : planoSelecionadoId;
+
+        if (idParaUsar) {
           // Verificar se o plano selecionado ainda existe
-          planoAtivo = planos.find(p => p.id.id === planoSelecionadoId);
+          planoAtivo = planos.find(p => p.id.id === idParaUsar);
           if (!planoAtivo) {
             // Se o plano selecionado não existe mais, usar o último criado
             planoAtivo = planos.reduce((prev, current) =>
               (current.id.id > prev.id.id) ? current : prev
             );
+            setPlanoSelecionadoId(planoAtivo.id.id);
+          } else {
+            // Garantir que o estado está correto
             setPlanoSelecionadoId(planoAtivo.id.id);
           }
         } else {
@@ -368,7 +373,7 @@ export function Nutricao() {
       setPlanoSelecionadoId(plano.id.id);
 
       // Recarregar dados - isso deve manter as refeições do plano anterior no plano anterior
-      await carregarDados();
+      await carregarDados(plano.id.id);
 
       setShowCriarPlanoDialog(false);
       setNovoPlano({ objetivo: 'Bulking', metaCalorias: 2500 }); // Resetar formulário
@@ -385,8 +390,8 @@ export function Nutricao() {
 
     // Atualizar o plano selecionado imediatamente para feedback visual
     setPlanoSelecionadoId(planoId);
-    // Recarregar dados para atualizar a visualização
-    await carregarDados();
+    // Recarregar dados para atualizar a visualização, passando o ID do plano
+    await carregarDados(planoId);
   };
 
   const handleAdicionarRefeicao = () => {
@@ -471,7 +476,7 @@ export function Nutricao() {
       setShowRefeicaoDialog(false);
 
       // Recarregar dados para atualizar a lista de refeições
-      await carregarDados();
+      await carregarDados(planoSelecionadoId);
     } catch (err: any) {
       setError(err.message || 'Erro ao salvar refeição');
     }
@@ -504,7 +509,7 @@ export function Nutricao() {
         refeicoesIds: refeicoesIdsAtuais,
       });
 
-      await carregarDados();
+      await carregarDados(planoSelecionadoId);
     } catch (err: any) {
       setError(err.message || 'Erro ao excluir refeição');
     }
@@ -528,7 +533,7 @@ export function Nutricao() {
       }
 
       // Recarregar dados para atualizar a lista
-      await carregarDados();
+      await carregarDados(null);
     } catch (err: any) {
       setError(err.message || 'Erro ao deletar plano');
     }
@@ -649,8 +654,8 @@ export function Nutricao() {
                   <Card
                     key={plano.id.id}
                     className={`cursor-pointer transition-all relative ${planoSelecionadoId === plano.id.id
-                        ? 'ring-2 ring-primary bg-primary/5'
-                        : 'hover:bg-accent/50'
+                      ? 'ring-2 ring-primary bg-primary/5'
+                      : 'hover:bg-accent/50'
                       }`}
                     onClick={() => handleSelecionarPlano(plano.id.id)}
                   >
