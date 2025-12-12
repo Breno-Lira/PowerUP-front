@@ -404,21 +404,21 @@ export function Home() {
                     <span className="font-medium">Força</span>
                     <span className="text-muted-foreground">{atributos.forca}</span>
                   </div>
-                  <Progress value={Math.min((atributos.forca / 100) * 100, 100)} />
+                  <Progress value={Math.min((atributos.forca / 1000) * 100, 100)} />
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">Resistência</span>
                     <span className="text-muted-foreground">{atributos.resistencia}</span>
                   </div>
-                  <Progress value={Math.min((atributos.resistencia / 100) * 100, 100)} />
+                  <Progress value={Math.min((atributos.resistencia / 1000) * 100, 100)} />
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">Agilidade</span>
                     <span className="text-muted-foreground">{atributos.agilidade}</span>
                   </div>
-                  <Progress value={Math.min((atributos.agilidade / 100) * 100, 100)} />
+                  <Progress value={Math.min((atributos.agilidade / 1000) * 100, 100)} />
                 </div>
               </div>
             ) : (
