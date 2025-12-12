@@ -28,7 +28,7 @@ export function ArenaDuelos() {
   const [derrotas, setDerrotas] = useState(0);
   const [duelosHoje, setDuelosHoje] = useState({ completos: 0, maximo: 5 });
   const [modalResultadoAberto, setModalResultadoAberto] = useState(false);
-  const [resultadoDuelo, setResultadoDuelo] = useState<'vitoria' | 'derrota' | null>(null);
+  const [resultadoDuelo, setResultadoDuelo] = useState<'vitoria' | 'derrota' | 'empate' | null>(null);
   const [historico, setHistorico] = useState<DueloResumo[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -42,6 +42,8 @@ export function ArenaDuelos() {
   const [perfilAmigoPorEmail, setPerfilAmigoPorEmail] = useState<Record<string, number>>({});
   const [avatarUsuarioId, setAvatarUsuarioId] = useState<number | null>(null);
   const [carregandoNomes, setCarregandoNomes] = useState(false);
+  const recompensaMoedas = 25;
+  const recompensaXp = 5;
 
   const oponenteAtual = 'Jogador n1';
 
@@ -208,7 +210,19 @@ export function ArenaDuelos() {
     }
     try {
       const resultado = await dueloService.realizarDuelo(perfilId, desafiadoPerfilId);
-      setResultadoDuelo(resultado.resultado?.toLowerCase().includes('vitoria') ? 'vitoria' : 'derrota');
+      const resultadoLower = resultado.resultado?.toLowerCase() || '';
+
+      // O usuário é o avatar1 (desafiante)
+      // Se contém "desafiante" ou "a1", o desafiante (usuário) ganhou = vitória
+      // Se contém "desafiado" ou "a2", o desafiado ganhou = derrota
+      let tipoResultado: 'vitoria' | 'derrota' | 'empate' = 'empate';
+      if (resultadoLower.includes('desafiante') || resultadoLower.includes('a1')) {
+        tipoResultado = 'vitoria';
+      } else if (resultadoLower.includes('desafiado') || resultadoLower.includes('a2')) {
+        tipoResultado = 'derrota';
+      }
+
+      setResultadoDuelo(tipoResultado);
       setModalResultadoAberto(true);
       await carregarHistorico();
     } catch (error: any) {
@@ -326,7 +340,28 @@ export function ArenaDuelos() {
               ) : (
                 <div className="space-y-4">
                   {historico.map((duelo) => {
-                    const voceGanhou = duelo.resultado?.toLowerCase() === 'vitoria';
+                    const resultadoLower = duelo.resultado?.toLowerCase() || '';
+
+                    // Determinar se você ganhou, perdeu ou empatou
+                    let tipoResultado: 'vitoria' | 'derrota' | 'empate' = 'empate';
+
+                    // Se você é o avatar1 (desafiante)
+                    if (duelo.avatar1Id === avatarUsuarioId) {
+                      if (resultadoLower.includes('desafiante') || resultadoLower.includes('a1')) {
+                        tipoResultado = 'vitoria';
+                      } else if (resultadoLower.includes('desafiado') || resultadoLower.includes('a2')) {
+                        tipoResultado = 'derrota';
+                      }
+                    }
+                    // Se você é o avatar2 (desafiado)
+                    else if (duelo.avatar2Id === avatarUsuarioId) {
+                      if (resultadoLower.includes('desafiado') || resultadoLower.includes('a2')) {
+                        tipoResultado = 'vitoria';
+                      } else if (resultadoLower.includes('desafiante') || resultadoLower.includes('a1')) {
+                        tipoResultado = 'derrota';
+                      }
+                    }
+
                     const dataStr = duelo.dataDuelo
                       ? new Date(duelo.dataDuelo).toLocaleString('pt-BR')
                       : '';
@@ -352,8 +387,8 @@ export function ArenaDuelos() {
                               <p className="font-semibold">Duelo #{duelo.id ?? '—'}</p>
                               <p className="text-sm text-muted-foreground">{dataStr}</p>
                             </div>
-                            <Badge variant={voceGanhou ? 'default' : 'destructive'}>
-                              {voceGanhou ? 'Vitória' : 'Derrota'}
+                            <Badge variant={tipoResultado === 'vitoria' ? 'default' : tipoResultado === 'empate' ? 'secondary' : 'destructive'}>
+                              {tipoResultado === 'vitoria' ? 'Vitória' : tipoResultado === 'empate' ? 'Empate' : 'Derrota'}
                             </Badge>
                           </div>
                           <div className="flex items-center gap-2 text-sm mt-2 text-muted-foreground">
@@ -377,12 +412,19 @@ export function ArenaDuelos() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-2xl text-center">
-              {resultadoDuelo === 'vitoria' ? 'Vitória' : 'Derrota'}
+              {resultadoDuelo === 'vitoria' ? 'Vitória' : resultadoDuelo === 'empate' ? 'Empate' : 'Derrota'}
             </DialogTitle>
             <DialogDescription className="text-center">
               vs {oponenteAtual}
             </DialogDescription>
           </DialogHeader>
+
+          {resultadoDuelo === 'vitoria' && (
+            <div className="flex items-center justify-center gap-4 text-green-600 font-semibold mt-2">
+              <span className="text-lg">+{recompensaMoedas} moedas</span>
+              <span className="text-lg">+{recompensaXp} XP</span>
+            </div>
+          )}
 
           <div className="space-y-3 mt-4">
             {roundsDuelo.map((round) => (

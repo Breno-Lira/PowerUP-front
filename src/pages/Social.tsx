@@ -44,7 +44,7 @@ export function Social() {
     nomeDesafiante: string;
     nomeDesafiado: string;
   } | null>(null);
-  
+
   // Estados para equipes
   const [equipes, setEquipes] = useState<EquipeResumo[]>([]);
   const [carregandoEquipes, setCarregandoEquipes] = useState(false);
@@ -54,7 +54,7 @@ export function Social() {
   const [nomeNovaEquipe, setNomeNovaEquipe] = useState('');
   const [descricaoNovaEquipe, setDescricaoNovaEquipe] = useState('');
   const [erroCriarEquipe, setErroCriarEquipe] = useState<string | null>(null);
-  
+
   // Estados para rivalidade
   const [rivalidades, setRivalidades] = useState<RivalidadeResumo[]>([]);
   const [carregandoRivalidades, setCarregandoRivalidades] = useState(false);
@@ -66,18 +66,22 @@ export function Social() {
   const [enviandoConvite, setEnviandoConvite] = useState(false);
   const [erroRivalidade, setErroRivalidade] = useState<string | null>(null);
   const [perfisAmigos, setPerfisAmigos] = useState<Map<string, number>>(new Map());
-  
+
   // Estados para desempenho/frequência
   const [frequenciaSemanal, setFrequenciaSemanal] = useState(0);
   const [metaSemanal, setMetaSemanal] = useState(0);
   const [carregandoDesempenho, setCarregandoDesempenho] = useState(false);
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
-  
+
   // Obter email do usuário logado
   const userEmail = JSON.parse(localStorage.getItem('user') || '{}')?.email;
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userPerfilId = userData.perfilId;
   const codigoAmizade = userData.amizadeId ? String(userData.amizadeId) : 'N/A'; // Código de amizade do usuário atual
+
+  // Constantes de recompensa de duelo
+  const recompensaMoedas = 25;
+  const recompensaXp = 5;
 
   const menuItems = [
     { label: 'Home', path: '/home' },
@@ -121,10 +125,10 @@ export function Social() {
   // Função para carregar equipes do usuário
   const carregarEquipes = async () => {
     if (!userEmail) return;
-    
+
     setCarregandoEquipes(true);
     setErroEquipes(null);
-    
+
     try {
       const equipesLista = await equipeService.listarPorUsuario(userEmail);
       setEquipes(equipesLista);
@@ -157,15 +161,15 @@ export function Social() {
         usuarioAdmEmail: userEmail,
         descricao: descricaoNovaEquipe.trim() || undefined,
       });
-      
+
       setNomeNovaEquipe('');
       setDescricaoNovaEquipe('');
       setModalCriarEquipeAberto(false);
       setMensagemSucesso('Equipe criada com sucesso!');
-      
+
       // Recarregar lista de equipes
       await carregarEquipes();
-      
+
       setTimeout(() => setMensagemSucesso(null), 3000);
     } catch (error: any) {
       console.error('Erro ao criar equipe:', error);
@@ -231,7 +235,7 @@ export function Social() {
         setComparacao(null);
         return;
       }
-      
+
       setCarregandoComparacao(true);
       try {
         const comparacaoData = await rivalidadeService.obterComparacao(rivalidadeAtiva.id, userPerfilId);
@@ -260,28 +264,28 @@ export function Social() {
   useEffect(() => {
     const carregarDesempenho = async () => {
       if (!userPerfilId || !userEmail) return;
-      
+
       setCarregandoDesempenho(true);
       try {
         // Carregar planos de treino ativos
         const planos = await planoTreinoService.listarPorUsuario(userEmail);
         const planosAtivos = planos.filter(p => p.estado === 'Ativo');
-        
+
         if (planosAtivos.length === 0) {
           setFrequenciaSemanal(0);
           setMetaSemanal(0);
           return;
         }
-        
+
         // Calcular meta semanal (soma de todos os dias de todos os planos ativos)
         const totalDias = planosAtivos.reduce((sum, p) => sum + p.dias.length, 0);
         setMetaSemanal(totalDias);
-        
+
         // Calcular frequência semanal de todos os planos ativos
         const frequenciasSemanais = await Promise.all(
           planosAtivos
             .filter(plano => plano.id != null)
-            .map(plano => 
+            .map(plano =>
               frequenciaService.calcularFrequenciaSemanal(userPerfilId, plano.id!)
                 .catch(() => 0)
             )
@@ -302,14 +306,14 @@ export function Social() {
 
   const carregarRivalidades = async () => {
     if (!userPerfilId) return;
-    
+
     setCarregandoRivalidades(true);
     setErroRivalidade(null);
-    
+
     try {
       const lista = await rivalidadeService.listarPorPerfil(userPerfilId);
       setRivalidades(lista);
-      
+
       // Encontrar rivalidade ativa
       const ativa = lista.find(r => r.status === 'ATIVA');
       setRivalidadeAtiva(ativa || null);
@@ -341,12 +345,12 @@ export function Social() {
     try {
       // Buscar perfil do amigo
       const perfilAmigo = await perfilService.obterPorEmail(amigoSelecionado.usuarioEmail);
-      
+
       if (!perfilAmigo || !perfilAmigo.id) {
         setErroRivalidade('Perfil do amigo não encontrado.');
         return;
       }
-      
+
       // Por enquanto, vamos usar exercicioId = 1 como padrão
       // Isso pode ser melhorado depois para permitir escolher o exercício
       await rivalidadeService.enviarConvite({
@@ -354,18 +358,18 @@ export function Social() {
         perfil2Id: perfilAmigo.id,
         exercicioId: 1, // TODO: Permitir escolher exercício
       });
-      
+
       setModalEnviarConvite(false);
       setAmigoSelecionado(null);
       setMensagemSucesso('Convite de rivalidade enviado com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
-      
+
       // Recarregar rivalidades
       await carregarRivalidades();
     } catch (error: any) {
       console.error('Erro ao enviar convite:', error);
       let mensagemErro = 'Erro ao enviar convite. Tente novamente.';
-      
+
       if (error.response) {
         // Se a resposta tem uma mensagem específica
         if (error.response.data?.mensagem) {
@@ -380,7 +384,7 @@ export function Social() {
       } else if (error.message) {
         mensagemErro = error.message;
       }
-      
+
       setErroRivalidade(mensagemErro);
     } finally {
       setEnviandoConvite(false);
@@ -395,14 +399,14 @@ export function Social() {
         rivalidadeId: rivalidade.id,
         usuarioId: userPerfilId,
       });
-      
+
       setMensagemSucesso('Rivalidade aceita com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
       await carregarRivalidades();
     } catch (error: any) {
       console.error('Erro ao aceitar convite:', error);
       let mensagemErro = 'Erro ao aceitar convite. Tente novamente.';
-      
+
       if (error.response) {
         // Se a resposta tem uma mensagem específica
         if (error.response.data?.mensagem) {
@@ -417,7 +421,7 @@ export function Social() {
       } else if (error.message) {
         mensagemErro = error.message;
       }
-      
+
       setErroRivalidade(mensagemErro);
     }
   };
@@ -430,14 +434,14 @@ export function Social() {
         rivalidadeId: rivalidade.id,
         usuarioId: userPerfilId,
       });
-      
+
       setMensagemSucesso('Convite cancelado com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
       await carregarRivalidades();
     } catch (error: any) {
       console.error('Erro ao cancelar convite:', error);
       let mensagemErro = 'Erro ao cancelar convite. Tente novamente.';
-      
+
       if (error.response) {
         if (error.response.data?.mensagem) {
           mensagemErro = error.response.data.mensagem;
@@ -451,7 +455,7 @@ export function Social() {
       } else if (error.message) {
         mensagemErro = error.message;
       }
-      
+
       setErroRivalidade(mensagemErro);
     }
   };
@@ -464,7 +468,7 @@ export function Social() {
         rivalidadeId: rivalidade.id,
         usuarioId: userPerfilId,
       });
-      
+
       setMensagemSucesso('Convite recusado.');
       setTimeout(() => setMensagemSucesso(null), 3000);
       await carregarRivalidades();
@@ -486,7 +490,7 @@ export function Social() {
         rivalidadeId: rivalidade.id,
         usuarioId: userPerfilId,
       });
-      
+
       setMensagemSucesso('Rivalidade finalizada com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
       await carregarRivalidades();
@@ -522,20 +526,20 @@ export function Social() {
         setErroAdicionar(perfilError.message || 'Não foi possível encontrar o perfil do amigo. Verifique se o amigo tem um perfil cadastrado.');
         return;
       }
-      
+
       if (!perfilAmigo || !perfilAmigo.id) {
         setErroAdicionar('Perfil do amigo não encontrado.');
         return;
       }
-      
+
       // Realizar duelo (userPerfilId é o desafiante, perfilAmigo.id é o desafiado)
       const duelo = await dueloService.realizarDuelo(userPerfilId, perfilAmigo.id);
-      
+
       // No backend, avatar1 é sempre o desafiante e avatar2 é sempre o desafiado
       // Buscar atributos de ambos os avatares
       const atributosDesafiante = await dueloService.obterAtributosAvatar(duelo.avatar1Id);
       const atributosDesafiado = await dueloService.obterAtributosAvatar(duelo.avatar2Id);
-      
+
       setResultadoDuelo({
         duelo,
         atributosDesafiante,
@@ -546,7 +550,7 @@ export function Social() {
     } catch (error: any) {
       console.error('Erro ao realizar duelo:', error);
       let errorMessage = 'Erro ao realizar duelo. Tente novamente.';
-      
+
       if (error.response) {
         // Erro da API
         if (error.response.data) {
@@ -566,7 +570,7 @@ export function Social() {
         // Erro de rede ou outro erro
         errorMessage = error.message;
       }
-      
+
       setErroAdicionar(errorMessage);
     } finally {
       setDuelando(null);
@@ -595,7 +599,7 @@ export function Social() {
     } catch (error: any) {
       console.error('Erro ao remover amizade:', error);
       let errorMessage = 'Erro ao remover amizade. Tente novamente.';
-      
+
       if (error.response) {
         if (error.response.data) {
           if (typeof error.response.data === 'object' && error.response.data.message) {
@@ -607,7 +611,7 @@ export function Social() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setErroAdicionar(errorMessage);
     } finally {
       setRemovendoAmizade(null);
@@ -667,7 +671,7 @@ export function Social() {
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
-              
+
               {/* Informações do usuário logado */}
               <div className="mt-6 mb-6 pb-6 border-b">
                 <div className="flex items-center gap-3 px-4">
@@ -745,8 +749,8 @@ export function Social() {
             >
               Rival
             </Button>
-            <Button 
-              variant="default" 
+            <Button
+              variant="default"
               className="flex-1"
               onClick={() => setModalCriarEquipeAberto(true)}
             >
@@ -809,8 +813,8 @@ export function Social() {
                                 <div className="p-4 rounded-lg border bg-card">
                                   <div className="flex items-center gap-2 mb-2">
                                     {comparacao.fotoUsuario ? (
-                                      <img 
-                                        src={comparacao.fotoUsuario} 
+                                      <img
+                                        src={comparacao.fotoUsuario}
                                         alt="Você"
                                         className="h-8 w-8 rounded-full object-cover"
                                       />
@@ -827,8 +831,8 @@ export function Social() {
                                 <div className="p-4 rounded-lg border bg-card">
                                   <div className="flex items-center gap-2 mb-2">
                                     {comparacao.fotoRival ? (
-                                      <img 
-                                        src={comparacao.fotoRival} 
+                                      <img
+                                        src={comparacao.fotoRival}
                                         alt={comparacao.nomeRival}
                                         className="h-8 w-8 rounded-full object-cover"
                                       />
@@ -852,8 +856,8 @@ export function Social() {
                                 <div className="p-4 rounded-lg border bg-card">
                                   <div className="flex items-center gap-2 mb-2">
                                     {comparacao.fotoUsuario ? (
-                                      <img 
-                                        src={comparacao.fotoUsuario} 
+                                      <img
+                                        src={comparacao.fotoUsuario}
                                         alt="Você"
                                         className="h-8 w-8 rounded-full object-cover"
                                       />
@@ -870,8 +874,8 @@ export function Social() {
                                 <div className="p-4 rounded-lg border bg-card">
                                   <div className="flex items-center gap-2 mb-2">
                                     {comparacao.fotoRival ? (
-                                      <img 
-                                        src={comparacao.fotoRival} 
+                                      <img
+                                        src={comparacao.fotoRival}
                                         alt={comparacao.nomeRival}
                                         className="h-8 w-8 rounded-full object-cover"
                                       />
@@ -895,8 +899,8 @@ export function Social() {
                                 <div className="p-4 rounded-lg border bg-card">
                                   <div className="flex items-center gap-2 mb-2">
                                     {comparacao.fotoUsuario ? (
-                                      <img 
-                                        src={comparacao.fotoUsuario} 
+                                      <img
+                                        src={comparacao.fotoUsuario}
                                         alt="Você"
                                         className="h-8 w-8 rounded-full object-cover"
                                       />
@@ -913,8 +917,8 @@ export function Social() {
                                 <div className="p-4 rounded-lg border bg-card">
                                   <div className="flex items-center gap-2 mb-2">
                                     {comparacao.fotoRival ? (
-                                      <img 
-                                        src={comparacao.fotoRival} 
+                                      <img
+                                        src={comparacao.fotoRival}
                                         alt={comparacao.nomeRival}
                                         className="h-8 w-8 rounded-full object-cover"
                                       />
@@ -954,7 +958,7 @@ export function Social() {
                                 <div>
                                   <p className="font-medium">Convite de Rivalidade</p>
                                   <p className="text-sm text-muted-foreground">
-                                    {rivalidade.nomePerfil1 
+                                    {rivalidade.nomePerfil1
                                       ? `Você recebeu um convite de rivalidade de ${rivalidade.nomePerfil1}`
                                       : 'Você recebeu um convite de rivalidade'}
                                   </p>
@@ -1000,17 +1004,17 @@ export function Social() {
                               const perfilAmigoId = perfisAmigos.get(amigo.usuarioEmail);
                               const temRivalidadeAtiva = perfilAmigoId && rivalidades.some(r => {
                                 const isParticipante = (r.perfil1 === userPerfilId && r.perfil2 === perfilAmigoId) ||
-                                                      (r.perfil2 === userPerfilId && r.perfil1 === perfilAmigoId);
+                                  (r.perfil2 === userPerfilId && r.perfil1 === perfilAmigoId);
                                 return isParticipante && r.status === 'ATIVA';
                               });
-                              
+
                               // Verificar se já existe convite pendente enviado por este usuário
                               const convitePendente = perfilAmigoId && rivalidades.find(r => {
-                                return r.perfil1 === userPerfilId && 
-                                       r.perfil2 === perfilAmigoId && 
-                                       r.status === 'PENDENTE';
+                                return r.perfil1 === userPerfilId &&
+                                  r.perfil2 === perfilAmigoId &&
+                                  r.status === 'PENDENTE';
                               });
-                              
+
                               return (
                                 <div
                                   key={amigo.usuarioEmail}
@@ -1144,103 +1148,103 @@ export function Social() {
                   <CardTitle>Minhas Amizades</CardTitle>
                 </CardHeader>
                 <CardContent>
-                {carregandoAmigos ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <span className="ml-2 text-muted-foreground">Carregando amizades...</span>
-                  </div>
-                ) : erroAmigos ? (
-                  <div className="text-center py-8 text-destructive">
-                    <p>{erroAmigos}</p>
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => {
-                        setCarregandoAmigos(true);
-                        setErroAmigos(null);
-                        usuarioService
-                          .listarAmigos(userEmail)
-                          .then((amigosLista) => {
-                            setAmigos(amigosLista.filter(amigo => amigo.usuarioEmail !== userEmail));
-                            setCarregandoAmigos(false);
-                          })
-                          .catch((error) => {
-                            console.error('Erro ao buscar amigos:', error);
-                            setErroAmigos('Erro ao carregar amizades. Tente novamente.');
-                            setCarregandoAmigos(false);
-                          });
-                      }}
-                    >
-                      Tentar novamente
-                    </Button>
-                  </div>
-                ) : amigos.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Você ainda não tem amizades.</p>
-                    <p className="text-sm mt-2">Use seu código de amizade para adicionar amigos!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {amigos.map((amigo) => (
-                      <div
-                        key={amigo.usuarioEmail}
-                        className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                  {carregandoAmigos ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-muted-foreground">Carregando amizades...</span>
+                    </div>
+                  ) : erroAmigos ? (
+                    <div className="text-center py-8 text-destructive">
+                      <p>{erroAmigos}</p>
+                      <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={() => {
+                          setCarregandoAmigos(true);
+                          setErroAmigos(null);
+                          usuarioService
+                            .listarAmigos(userEmail)
+                            .then((amigosLista) => {
+                              setAmigos(amigosLista.filter(amigo => amigo.usuarioEmail !== userEmail));
+                              setCarregandoAmigos(false);
+                            })
+                            .catch((error) => {
+                              console.error('Erro ao buscar amigos:', error);
+                              setErroAmigos('Erro ao carregar amizades. Tente novamente.');
+                              setCarregandoAmigos(false);
+                            });
+                        }}
                       >
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-5 w-5 text-primary" />
+                        Tentar novamente
+                      </Button>
+                    </div>
+                  ) : amigos.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Você ainda não tem amizades.</p>
+                      <p className="text-sm mt-2">Use seu código de amizade para adicionar amigos!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {amigos.map((amigo) => (
+                        <div
+                          key={amigo.usuarioEmail}
+                          className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                        >
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium">{amigo.nome}</p>
+                            <p className="text-sm text-muted-foreground">{amigo.usuarioEmail}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDuelar(amigo)}
+                              disabled={duelando === amigo.usuarioEmail || removendoAmizade === amigo.usuarioEmail || !userPerfilId}
+                              className="gap-2"
+                            >
+                              {duelando === amigo.usuarioEmail ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Duelando...
+                                </>
+                              ) : (
+                                <>
+                                  <Sword className="h-4 w-4" />
+                                  Duelar
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRemoverAmizade(amigo)}
+                              disabled={duelando === amigo.usuarioEmail || removendoAmizade === amigo.usuarioEmail}
+                              className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              {removendoAmizade === amigo.usuarioEmail ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Removendo...
+                                </>
+                              ) : (
+                                <>
+                                  <UserMinus className="h-4 w-4" />
+                                  Remover
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <p className="font-medium">{amigo.nome}</p>
-                          <p className="text-sm text-muted-foreground">{amigo.usuarioEmail}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDuelar(amigo)}
-                            disabled={duelando === amigo.usuarioEmail || removendoAmizade === amigo.usuarioEmail || !userPerfilId}
-                            className="gap-2"
-                          >
-                            {duelando === amigo.usuarioEmail ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Duelando...
-                              </>
-                            ) : (
-                              <>
-                                <Sword className="h-4 w-4" />
-                                Duelar
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRemoverAmizade(amigo)}
-                            disabled={duelando === amigo.usuarioEmail || removendoAmizade === amigo.usuarioEmail}
-                            className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            {removendoAmizade === amigo.usuarioEmail ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Removendo...
-                              </>
-                            ) : (
-                              <>
-                                <UserMinus className="h-4 w-4" />
-                                Remover
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
           )}
 
           {/* Seção Desempenho */}
@@ -1365,6 +1369,10 @@ export function Social() {
                   <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4">
                     <p className="text-2xl font-bold text-green-800">🎉 Vitória!</p>
                     <p className="text-green-700 mt-2">Você venceu o duelo contra {resultadoDuelo.nomeDesafiado}!</p>
+                    <div className="flex items-center justify-center gap-4 text-green-600 font-semibold mt-3">
+                      <span className="text-lg">+{recompensaMoedas} moedas</span>
+                      <span className="text-lg">+{recompensaXp} XP</span>
+                    </div>
                   </div>
                 ) : resultadoDuelo.duelo.resultado === 'VITORIA_DESAFIADO(A2)' ? (
                   <div className="bg-red-100 border-2 border-red-500 rounded-lg p-4">
@@ -1423,7 +1431,7 @@ export function Social() {
               {/* Comparação Visual */}
               <div className="space-y-4">
                 <h4 className="font-semibold text-center">Comparação de Atributos</h4>
-                
+
                 {/* Força */}
                 <div>
                   <div className="flex justify-between text-sm mb-2">
@@ -1577,8 +1585,8 @@ export function Social() {
       </Dialog>
 
       {/* Dialog de Enviar Convite de Rivalidade */}
-      <Dialog 
-        open={modalEnviarConvite} 
+      <Dialog
+        open={modalEnviarConvite}
         onOpenChange={(open) => {
           setModalEnviarConvite(open);
           if (!open) {
