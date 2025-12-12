@@ -71,6 +71,7 @@ export function Treinos() {
   const [mostrarCheckin, setMostrarCheckin] = useState(true);
   const [planosAtivos, setPlanosAtivos] = useState<PlanoTreinoResumo[]>([]);
   const [planosHistoricos, setPlanosHistoricos] = useState<PlanoTreinoResumo[]>([]);
+  const [todosPlanos, setTodosPlanos] = useState<PlanoTreinoResumo[]>([]); // Para buscar nomes de planos deletados
   const [exercicios, setExercicios] = useState<ExercicioResumo[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -104,6 +105,7 @@ export function Treinos() {
       
       setPlanosAtivos(planos.filter(p => p.estado === 'Ativo'));
       setPlanosHistoricos(planos.filter(p => p.estado === 'Historico'));
+      setTodosPlanos(planos); // Armazenar todos os planos para buscar nomes
       setExercicios(exerciciosList);
       
       if (perfil) {
@@ -112,12 +114,18 @@ export function Treinos() {
         const primeiroPlanoAtivo = planos.find(p => p.estado === 'Ativo');
         if (primeiroPlanoAtivo) {
           setPlanoTreinoSelecionado(primeiroPlanoAtivo);
+        } else {
+          // Limpar seleção se não houver planos ativos
+          setPlanoTreinoSelecionado(null);
         }
         // Calcular meta semanal como soma de todos os dias de todos os planos ativos
         const totalDias = planos
           .filter(p => p.estado === 'Ativo')
           .reduce((sum, p) => sum + p.dias.length, 0);
         setMetaSemanal(totalDias);
+      } else if (userData?.perfilId) {
+        // Fallback: usar perfilId do userData se o perfil não foi encontrado
+        setPerfilId(userData.perfilId);
       }
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
@@ -128,7 +136,10 @@ export function Treinos() {
   };
 
   const carregarFrequencias = async () => {
-    if (!perfilId || planosAtivos.length === 0) return;
+    if (!perfilId) {
+      console.log('carregarFrequencias: perfilId não disponível. userData.perfilId:', userData?.perfilId);
+      return;
+    }
     
     try {
       const frequenciasList = await frequenciaService.listarPorPerfil(perfilId);
@@ -136,20 +147,36 @@ export function Treinos() {
       // Calcular sequência total considerando todos os planos
       const sequenciaTotal = await frequenciaService.calcularSequenciaDiasTotal(perfilId);
       
-      // Calcular frequência semanal de todos os planos ativos
-      const frequenciasSemanais = await Promise.all(
-        planosAtivos.map(plano => 
-          frequenciaService.calcularFrequenciaSemanal(perfilId, plano.id!)
-        )
-      );
-      const frequenciaTotal = frequenciasSemanais.reduce((sum, freq) => sum + freq, 0);
+      // Calcular frequência semanal baseada em TODAS as frequências da semana atual
+      // (incluindo frequências de planos deletados)
+      const hoje = new Date();
+      const inicioSemana = new Date(hoje);
+      inicioSemana.setDate(hoje.getDate() - hoje.getDay() + 1); // Segunda-feira
+      inicioSemana.setHours(0, 0, 0, 0);
       
-      // Filtrar frequências do plano selecionado ou todas se não houver seleção
-      const frequenciasFiltradas = planoTreinoSelecionado?.id
-        ? frequenciasList.filter(f => f.planoTreinoId === planoTreinoSelecionado.id)
-        : frequenciasList;
+      const fimSemana = new Date(inicioSemana);
+      fimSemana.setDate(inicioSemana.getDate() + 6); // Domingo
+      fimSemana.setHours(23, 59, 59, 999);
       
-      setFrequencias(frequenciasFiltradas);
+      // Contar dias únicos com frequência na semana atual
+      const frequenciasSemanaAtual = frequenciasList
+        .filter(f => {
+          const dataFrequencia = new Date(f.dataDePresenca);
+          return dataFrequencia >= inicioSemana && dataFrequencia <= fimSemana;
+        })
+        .map(f => {
+          const dataFrequencia = new Date(f.dataDePresenca);
+          return dataFrequencia.toDateString(); // Para agrupar por dia
+        });
+      
+      // Contar dias únicos (pode haver múltiplas frequências no mesmo dia)
+      const diasUnicos = new Set(frequenciasSemanaAtual);
+      const frequenciaTotal = diasUnicos.size;
+      
+      // Para a lista de histórico, sempre mostrar TODAS as frequências
+      // (o filtro por plano só é usado no grid de dias da semana)
+      // Isso permite ver frequências de planos deletados
+      setFrequencias(frequenciasList);
       setSequenciaDias(sequenciaTotal);
       setFrequenciaSemanal(frequenciaTotal);
     } catch (error: any) {
@@ -222,13 +249,28 @@ export function Treinos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userEmail]);
 
-  // Carregar frequências quando perfilId ou planos ativos mudarem
+  // Garantir que perfilId seja definido mesmo se carregarDados falhar
   useEffect(() => {
-    if (perfilId && planosAtivos.length > 0) {
+    if (!perfilId && userData?.perfilId) {
+      setPerfilId(userData.perfilId);
+    }
+  }, [perfilId, userData?.perfilId]);
+
+  // Carregar frequências quando perfilId mudar (mesmo sem planos ativos)
+  useEffect(() => {
+    if (perfilId) {
       carregarFrequencias();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [perfilId, planosAtivos]);
+  }, [perfilId]);
+  
+  // Recarregar frequências quando planos ativos mudarem (para recalcular frequência semanal)
+  useEffect(() => {
+    if (perfilId) {
+      carregarFrequencias();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planosAtivos]);
 
   // Recalcular meta semanal quando planos ativos mudarem
   useEffect(() => {
@@ -378,6 +420,10 @@ export function Treinos() {
     try {
       await planoTreinoService.excluirPlanoTreino(planoId);
       await carregarDados();
+      // Recarregar frequências para atualizar o grid de dias da semana
+      if (perfilId) {
+        await carregarFrequencias();
+      }
     } catch (error: any) {
       console.error('Erro ao deletar plano:', error);
       setErro(error.response?.data || error.message || 'Erro ao deletar plano.');
@@ -1006,7 +1052,7 @@ export function Treinos() {
                 </Card>
               )}
 
-              {!planoTreinoSelecionado && planosAtivos.length === 0 && (
+              {!planoTreinoSelecionado && planosAtivos.length === 0 && frequencias.length === 0 && (
                 <Card>
                   <CardContent className="pt-6">
                     <p className="text-center text-muted-foreground">
@@ -1017,14 +1063,16 @@ export function Treinos() {
               )}
 
               {/* Card Dias Consecutivos */}
-              {planosAtivos.length > 0 && (
+              {(planosAtivos.length > 0 || frequencias.length > 0) && (
                 <Card>
                   <CardContent className="pt-6">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Dias Consecutivos</p>
                       <p className="text-2xl font-bold">{sequenciaDias} {sequenciaDias === 1 ? 'dia' : 'dias'} consecutivos</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Considerando todos os planos de treino
+                        {planosAtivos.length > 0 
+                          ? 'Considerando todos os planos de treino'
+                          : 'Histórico de frequências'}
                       </p>
                     </div>
                   </CardContent>
@@ -1032,28 +1080,37 @@ export function Treinos() {
               )}
 
               {/* Cards Esta Semana e Meta Semanal */}
-              {planosAtivos.length > 0 && (
+              {(planosAtivos.length > 0 || frequencias.length > 0) && (
                 <div className="grid grid-cols-2 gap-4">
                   <Card>
                     <CardContent className="pt-6">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Esta Semana</p>
-                        <p className="text-2xl font-bold">{frequenciaSemanal}/{metaSemanal} treinos</p>
+                        <p className="text-2xl font-bold">
+                          {frequenciaSemanal}/{planosAtivos.length > 0 ? metaSemanal : frequenciaSemanal} treinos
+                        </p>
+                        {planosAtivos.length === 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Frequências registradas esta semana
+                          </p>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Meta Semanal</p>
-                        <p className="text-2xl font-bold">{metaSemanal} treinos</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Soma de todos os planos ativos
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {planosAtivos.length > 0 && (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Meta Semanal</p>
+                          <p className="text-2xl font-bold">{metaSemanal} treinos</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Soma de todos os planos ativos
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
 
@@ -1106,7 +1163,7 @@ export function Treinos() {
                   )}
 
               {/* Grid de Dias da Semana */}
-              {planosAtivos.length > 0 && (
+              {(planosAtivos.length > 0 || frequencias.length > 0) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Dias da Semana</CardTitle>
@@ -1116,23 +1173,44 @@ export function Treinos() {
                       {(() => {
                         const hoje = new Date();
                         const diasSemana = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-                        // Buscar todas as frequências de todos os planos ativos
-                        const todasFrequencias = frequencias.filter(f => 
-                          planosAtivos.some(p => p.id === f.planoTreinoId)
-                        );
-                        const diasCompletos = todasFrequencias.map(f => {
-                          const data = new Date(f.dataDePresenca);
-                          return data.toDateString();
+                        
+                        // Função auxiliar para normalizar data (apenas ano, mês, dia)
+                        const normalizarData = (data: Date | string): string => {
+                          let d: Date;
+                          if (typeof data === 'string') {
+                            // Se a string já está no formato YYYY-MM-DD, usar diretamente
+                            if (/^\d{4}-\d{2}-\d{2}/.test(data)) {
+                              return data.substring(0, 10);
+                            }
+                            d = new Date(data);
+                          } else {
+                            d = data;
+                          }
+                          // Usar métodos locais para manter consistência
+                          const ano = d.getFullYear();
+                          const mes = String(d.getMonth() + 1).padStart(2, '0');
+                          const dia = String(d.getDate()).padStart(2, '0');
+                          return `${ano}-${mes}-${dia}`;
+                        };
+                        
+                        // Sempre mostrar todas as frequências (incluindo de planos deletados)
+                        // Normalizar as datas das frequências para comparar apenas dia/mês/ano
+                        const diasCompletos = frequencias.map(f => {
+                          return normalizarData(f.dataDePresenca);
                         });
 
                         // Gerar os últimos 7 dias
                         const ultimos7Dias = Array.from({ length: 7 }, (_, i) => {
                           const data = new Date(hoje);
                           data.setDate(data.getDate() - (6 - i));
+                          // Normalizar hora para meia-noite para comparação precisa
+                          data.setHours(0, 0, 0, 0);
+                          const dataNormalizada = normalizarData(data);
+                          const estaCompleto = diasCompletos.includes(dataNormalizada);
                           return {
                             dia: diasSemana[data.getDay()],
                             data: data.getDate(),
-                            completo: diasCompletos.includes(data.toDateString()),
+                            completo: estaCompleto,
                             dataObj: data,
                           };
                         });
@@ -1157,7 +1235,7 @@ export function Treinos() {
               )}
 
               {/* Mensagem Motivacional */}
-              {planosAtivos.length > 0 && sequenciaDias > 0 && (
+              {sequenciaDias > 0 && (
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="pt-6">
                     <p className="text-center text-sm">
@@ -1168,6 +1246,66 @@ export function Treinos() {
                         : 'Bom começo! Continue registrando seus treinos!'
                       }
                     </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Lista de Frequências */}
+              {frequencias.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Histórico de Frequências</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {frequencias
+                        .sort((a, b) => {
+                          // Ordenar por data (mais recente primeiro)
+                          return new Date(b.dataDePresenca).getTime() - new Date(a.dataDePresenca).getTime();
+                        })
+                        .map((frequencia) => {
+                          // Buscar nome do plano de treino
+                          const plano = todosPlanos.find(p => p.id === frequencia.planoTreinoId);
+                          const nomePlano = plano?.nome || (frequencia.planoTreinoId ? 'Plano deletado' : 'Sem plano');
+                          
+                          // Formatar data
+                          const dataFormatada = new Date(frequencia.dataDePresenca).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          });
+
+                          return (
+                            <div
+                              key={frequencia.id}
+                              className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                            >
+                              {/* Foto */}
+                              {frequencia.foto ? (
+                                <div className="flex-shrink-0">
+                                  <img
+                                    src={`data:image/jpeg;base64,${frequencia.foto}`}
+                                    alt={`Frequência ${dataFormatada}`}
+                                    className="w-16 h-16 object-cover rounded-lg border"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex-shrink-0 w-16 h-16 rounded-lg border bg-muted flex items-center justify-center">
+                                  <span className="text-2xl">📅</span>
+                                </div>
+                              )}
+                              
+                              {/* Informações */}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm">{nomePlano}</p>
+                                <p className="text-sm text-muted-foreground">{dataFormatada}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
                   </CardContent>
                 </Card>
               )}
