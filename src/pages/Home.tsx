@@ -286,6 +286,8 @@ export function Home() {
                 <span>Nível {avatar?.nivel ?? 1}</span>
                 <span>·</span>
                 <span>{xpTotal.toLocaleString('pt-BR')} XP</span>
+                <span>·</span>
+                <span>{(avatar?.dinheiro ?? 0).toLocaleString('pt-BR')} $</span>
               </p>
             </div>
           </div>
@@ -313,7 +315,11 @@ export function Home() {
               </div>
               <div className="flex-1 md:max-w-md">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium">Progresso de XP</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Nível {avatar?.nivel ?? 1}</span>
+                    <span className="text-sm text-muted-foreground">·</span>
+                    <span className="text-sm font-medium">Progresso de XP</span>
+                  </div>
                   <span className="text-xs text-muted-foreground">{xpTotal} XP</span>
                 </div>
                 <Progress value={xpPercentual} className="h-3" />

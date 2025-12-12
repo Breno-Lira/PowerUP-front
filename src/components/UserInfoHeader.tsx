@@ -38,7 +38,9 @@ export function UserInfoHeader({ className = '', variant = 'inline' }: UserInfoH
 
   if (!perfilId || !userEmail) return null;
 
-  const xpTotal = avatar ? (avatar.experiencia ?? 0) : 0;
+  // Calcular XP total: (nível - 1) * 100 + experiência atual
+  const xpTotal = avatar ? (avatar.nivel - 1) * 100 + (avatar.experiencia ?? 0) : 0;
+  const dinheiro = avatar?.dinheiro ?? 0;
 
   const baseClasses =
     variant === 'card'
@@ -60,6 +62,8 @@ export function UserInfoHeader({ className = '', variant = 'inline' }: UserInfoH
           <span>Nível {avatar?.nivel ?? 1}</span>
           <span>·</span>
           <span>{xpTotal.toLocaleString('pt-BR')} XP</span>
+          <span>·</span>
+          <span>{dinheiro.toLocaleString('pt-BR')} $</span>
         </p>
       </div>
     </div>
