@@ -33,7 +33,7 @@ export function Ranking() {
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
-  
+
   const [abaAtiva, setAbaAtiva] = useState<'global' | 'amigos' | 'equipes'>('global');
   const [rankingGlobal, setRankingGlobal] = useState<RankingEntry[]>([]);
   const [rankingAmigos, setRankingAmigos] = useState<RankingEntry[]>([]);
@@ -195,15 +195,33 @@ export function Ranking() {
     return titulo;
   };
 
+  const getEmojiPorTitulo = (titulo: string) => {
+    switch (titulo) {
+      case 'Camundongo':
+        return '🐭';
+      case 'Gato':
+        return '🐱';
+      case 'Cachorro':
+        return '🐶';
+      case 'Lobo':
+        return '🐺';
+      case 'Leão':
+        return '🦁';
+      case 'Dragão':
+        return '🐲';
+      default:
+        return '🏅';
+    }
+  };
+
   const renderLinhaRanking = (entrada: RankingEntry) => {
     const isUsuario = userEmail && entrada.email === userEmail;
     const tituloRank = getTituloPorNivel(entrada.nivel);
     return (
       <div
         key={`${entrada.perfilId}-${entrada.email}-${entrada.posicao}`}
-        className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${
-          isUsuario ? 'bg-green-100 border-2 border-green-500' : 'hover:bg-accent/50'
-        }`}
+        className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${isUsuario ? 'bg-green-100 border-2 border-green-500' : 'hover:bg-accent/50'
+          }`}
       >
         <div className="flex items-center gap-3">
           {getIconePosicao(entrada.posicao)}
@@ -220,8 +238,9 @@ export function Ranking() {
             <span>Nível {entrada.nivel}</span>
             <span>·</span>
             <span>{entrada.xpTotal.toLocaleString('pt-BR')} XP</span>
-            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
-              {tituloRank}
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold flex items-center gap-1">
+              <span>{getEmojiPorTitulo(tituloRank)}</span>
+              <span>{tituloRank}</span>
             </span>
           </div>
         </div>
@@ -247,7 +266,7 @@ export function Ranking() {
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
-              
+
               {/* Informações do usuário logado */}
               <div className="mt-6 mb-6 pb-6 border-b">
                 <div className="flex items-center gap-3 px-4">
@@ -298,9 +317,9 @@ export function Ranking() {
               </div>
             </SheetContent>
           </Sheet>
-            <div className="ml-auto hidden sm:block">
-              <UserInfoHeader variant="inline" />
-            </div>
+          <div className="ml-auto hidden sm:block">
+            <UserInfoHeader variant="inline" />
+          </div>
         </div>
       </div>
 
@@ -315,27 +334,29 @@ export function Ranking() {
 
           {/* Card Sua Posição Global */}
           {posicaoUsuario && (
-          <Card className="bg-green-50 border-green-200">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-white" />
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center">
+                      <TrendingUp className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Sua Posição Global</p>
+                      <p className="text-lg font-semibold flex items-center gap-1">
+                        <span>#{posicaoUsuario.posicao} ·</span>
+                        <span>{getEmojiPorTitulo(posicaoUsuario.titulo)}</span>
+                        <span>{posicaoUsuario.titulo}</span>
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Sua Posição Global</p>
-                    <p className="text-lg font-semibold">
-                        #{posicaoUsuario.posicao} · {posicaoUsuario.titulo}
-                    </p>
+                  <div className="text-right">
+                    <p className="text-lg font-bold">{posicaoUsuario.xp.toLocaleString('pt-BR')} XP</p>
+                    <p className="text-sm text-muted-foreground">Nível {posicaoUsuario.nivel}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold">{posicaoUsuario.xp.toLocaleString('pt-BR')} XP</p>
-                  <p className="text-sm text-muted-foreground">Nível {posicaoUsuario.nivel}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           )}
 
           {/* Títulos de Rank */}
@@ -350,7 +371,10 @@ export function Ranking() {
                     key={titulo.nome}
                     className="flex items-center justify-between p-2 rounded-md hover:bg-accent/50 transition-colors"
                   >
-                    <span className="font-medium">{titulo.nome}</span>
+                    <span className="font-medium flex items-center gap-2">
+                      <span>{getEmojiPorTitulo(titulo.nome)}</span>
+                      <span>{titulo.nome}</span>
+                    </span>
                     <span className="text-sm text-muted-foreground">
                       Nível mínimo: {titulo.nivelMin}
                     </span>

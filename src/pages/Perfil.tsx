@@ -43,6 +43,49 @@ const getIconePorNome = (nome: string): string => {
   return 'activity'; // padrão
 };
 
+// Títulos por nível (mesma lógica do Ranking)
+interface TituloRank { nome: string; nivelMin: number }
+const titulosRank: TituloRank[] = [
+  { nome: 'Camundongo', nivelMin: 1 },
+  { nome: 'Gato', nivelMin: 5 },
+  { nome: 'Cachorro', nivelMin: 10 },
+  { nome: 'Lobo', nivelMin: 15 },
+  { nome: 'Leão', nivelMin: 20 },
+  { nome: 'Dragão', nivelMin: 25 },
+];
+
+const getTituloPorNivel = (nivel: number) => {
+  let titulo = titulosRank[0].nome;
+  for (const t of titulosRank) {
+    if (nivel >= t.nivelMin) {
+      titulo = t.nome;
+    } else {
+      break;
+    }
+  }
+  return titulo;
+};
+
+// Emoji por título
+const getEmojiPorTitulo = (titulo: string) => {
+  switch (titulo) {
+    case 'Camundongo':
+      return '🐭';
+    case 'Gato':
+      return '🐱';
+    case 'Cachorro':
+      return '🐶';
+    case 'Lobo':
+      return '🐺';
+    case 'Leão':
+      return '🦁';
+    case 'Dragão':
+      return '🐲';
+    default:
+      return '🏅';
+  }
+};
+
 interface PerfilData {
   id: number;
   username: string;
@@ -50,13 +93,6 @@ interface PerfilData {
   titulo: string;
   totalTreinos: number;
   xpTotal: number;
-  atributos: {
-    forca: number;
-    resistencia: number;
-    velocidade: number;
-    agilidade: number;
-    flexibilidade: number;
-  };
   conquistasSelecionadas: number[];
 }
 
@@ -65,6 +101,7 @@ export function Perfil() {
   const [perfil, setPerfil] = useState<PerfilData | null>(null);
   const [perfilResumo, setPerfilResumo] = useState<PerfilResumo | null>(null);
   const [avatarDetalhe, setAvatarDetalhe] = useState<AvatarResumo | null>(null);
+  const [atributos, setAtributos] = useState<AtributosCalculados | null>(null);
   const [acessoriosSelecionados, setAcessoriosSelecionados] = useState<number[]>([]);
   const [salvandoAcessorios, setSalvandoAcessorios] = useState(false);
   const [erroAcessorios, setErroAcessorios] = useState<string | null>(null);
@@ -124,11 +161,12 @@ export function Perfil() {
 
       // Carregar avatar e atributos
       let avatar: AvatarResumo | null = null;
-      let atributos: AtributosCalculados | null = null;
+      let atributosCalculados: AtributosCalculados | null = null;
       try {
         avatar = await avatarService.obterPorPerfilId(userPerfilId);
         if (avatar) {
-          atributos = await avatarService.obterAtributos(avatar.id);
+          atributosCalculados = await avatarService.obterAtributos(avatar.id);
+          setAtributos(atributosCalculados);
           setAvatarDetalhe(avatar);
           setAcessoriosSelecionados(
             avatar.acessorios?.filter(a => a.equipado)?.map(a => a.id) || []
@@ -152,16 +190,9 @@ export function Perfil() {
         id: perfilData.id,
         username: perfilData.username,
         nivel: avatar?.nivel || 1,
-        titulo: 'Lobo', // TODO: Implementar sistema de títulos
+        titulo: getTituloPorNivel(avatar?.nivel || 1),
         totalTreinos: totalTreinos,
         xpTotal: avatar ? (avatar.nivel - 1) * 100 + (avatar.experiencia || 0) : 0,
-        atributos: {
-          forca: atributos?.forca || avatar?.forca || 0,
-          resistencia: atributos?.resistencia || 0,
-          velocidade: avatar?.nivel ? Math.round(avatar.nivel * 2) : 0, // Calculado baseado no nível
-          agilidade: atributos?.agilidade || 0,
-          flexibilidade: avatar?.nivel ? Math.round(avatar.nivel * 1.5) : 0, // Calculado baseado no nível
-        },
         conquistasSelecionadas: perfilData.conquistasSelecionadas
           ? perfilData.conquistasSelecionadas.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
           : [],
@@ -488,7 +519,10 @@ export function Perfil() {
                         Nível {perfil.nivel}
                       </span>
                       <span className="text-lg text-muted-foreground">·</span>
-                      <span className="text-lg text-muted-foreground">{perfil.titulo}</span>
+                      <span className="text-lg text-muted-foreground flex items-center gap-1">
+                        <span>{getEmojiPorTitulo(perfil.titulo)}</span>
+                        <span>{perfil.titulo}</span>
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {perfil.conquistasSelecionadas.length > 0 ? (
@@ -594,8 +628,8 @@ export function Perfil() {
                     <label
                       key={acc.id}
                       className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${acessoriosSelecionados.includes(acc.id)
-                          ? 'border-primary bg-primary/5'
-                          : 'hover:bg-accent/50'
+                        ? 'border-primary bg-primary/5'
+                        : 'hover:bg-accent/50'
                         }`}
                     >
                       <input
@@ -672,75 +706,64 @@ export function Perfil() {
                   <div>
                     <p className="text-sm font-medium">Progresso para o Nível {perfil.nivel + 1}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {perfil.xpTotal} / 100 XP
+                      {(avatarDetalhe?.experiencia ?? 0)} / 100 XP
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold text-primary">
-                      {Math.min(Math.round((perfil.xpTotal / 100) * 100), 100)}%
+                      {Math.min(Math.round(((avatarDetalhe?.experiencia ?? 0) / 100) * 100), 100)}%
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {Math.max(0, 100 - perfil.xpTotal)} XP restantes
+                      {Math.max(0, 100 - (avatarDetalhe?.experiencia ?? 0))} XP restantes
                     </p>
                   </div>
                 </div>
                 <Progress
-                  value={Math.min((perfil.xpTotal / 100) * 100, 100)}
+                  value={Math.min(((avatarDetalhe?.experiencia ?? 0) / 100) * 100, 100)}
                   className="h-3"
                 />
               </div>
             </CardContent>
           </Card>
 
-          {/* Estatísticas */}
-          {abaAtiva === 'estatisticas' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Atributos Físicos</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">Força</span>
-                    <span className="text-muted-foreground">{perfil.atributos.forca}</span>
+          {/* Atributos Físicos */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Atributos Físicos</CardTitle>
+              <CardDescription>Estatísticas do avatar</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {atributos ? (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">Força</span>
+                      <span className="text-muted-foreground">{atributos.forca}</span>
+                    </div>
+                    <Progress value={Math.min((atributos.forca / 100) * 100, 100)} />
                   </div>
-                  <Progress value={perfil.atributos.forca} />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">Resistência</span>
-                    <span className="text-muted-foreground">{perfil.atributos.resistencia}</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">Resistência</span>
+                      <span className="text-muted-foreground">{atributos.resistencia}</span>
+                    </div>
+                    <Progress value={Math.min((atributos.resistencia / 100) * 100, 100)} />
                   </div>
-                  <Progress value={perfil.atributos.resistencia} />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">Velocidade</span>
-                    <span className="text-muted-foreground">{perfil.atributos.velocidade}</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">Agilidade</span>
+                      <span className="text-muted-foreground">{atributos.agilidade}</span>
+                    </div>
+                    <Progress value={Math.min((atributos.agilidade / 100) * 100, 100)} />
                   </div>
-                  <Progress value={perfil.atributos.velocidade} />
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">Agilidade</span>
-                    <span className="text-muted-foreground">{perfil.atributos.agilidade}</span>
-                  </div>
-                  <Progress value={perfil.atributos.agilidade} />
+              ) : (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  Carregando atributos...
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">Flexibilidade</span>
-                    <span className="text-muted-foreground">{perfil.atributos.flexibilidade}</span>
-                  </div>
-                  <Progress value={perfil.atributos.flexibilidade} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
           {/* Conquistas Recentes */}
           {conquistasRecent.length > 0 && (
@@ -764,8 +787,8 @@ export function Perfil() {
                       <div
                         key={conquista.id}
                         className={`p-4 rounded-lg border-2 transition-all ${isSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:border-primary/50'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
                           }`}
                       >
                         <div className="flex items-start justify-between">
