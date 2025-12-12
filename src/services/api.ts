@@ -440,6 +440,17 @@ export interface ConquistaResumo {
   descricao: string;
   concluida: boolean;
   badgeAtual: string | null;
+  pesoMinimo: number | null;
+  atributoMinimo: number | null;
+  tipoAtributo: string | null;
+  repeticoesMinimas: number | null;
+  seriesMinimas: number | null;
+}
+
+export interface ConquistasComStatusResponse {
+  conquistas: ConquistaResumo[];
+  totalConquistadas: number;
+  totalGeral: number;
 }
 
 export const conquistaService = {
@@ -450,6 +461,11 @@ export const conquistaService = {
 
   listarPorPerfil: async (perfilId: number): Promise<ConquistaResumo[]> => {
     const response = await api.get<ConquistaResumo[]>(`/conquistas/perfil/${perfilId}`);
+    return response.data;
+  },
+
+  listarTodasComStatus: async (perfilId: number): Promise<ConquistasComStatusResponse> => {
+    const response = await api.get<ConquistasComStatusResponse>(`/conquistas/perfil/${perfilId}/todas-com-status`);
     return response.data;
   },
 };

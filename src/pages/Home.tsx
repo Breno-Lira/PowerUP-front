@@ -12,7 +12,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { perfilService, PerfilResumo, avatarService, AvatarResumo, rankingService, RankingEntry, AtributosCalculados } from '@/services/api';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { perfilService, PerfilResumo, avatarService, AvatarResumo, rankingService, RankingEntry, AtributosCalculados, conquistaService, ConquistaResumo, ConquistasComStatusResponse } from '@/services/api';
 
 interface HomeData {
   xpAtual: number;
@@ -31,6 +38,8 @@ export function Home() {
   const [erro, setErro] = useState<string | null>(null);
   const [posicaoRanking, setPosicaoRanking] = useState<RankingEntry | null>(null);
   const [atributos, setAtributos] = useState<AtributosCalculados | null>(null);
+  const [conquistas, setConquistas] = useState<ConquistasComStatusResponse | null>(null);
+  const [conquistaSelecionada, setConquistaSelecionada] = useState<ConquistaResumo | null>(null);
 
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
@@ -73,6 +82,14 @@ export function Home() {
           }
         } catch (e) {
           console.warn('Não foi possível carregar posição no ranking global', e);
+        }
+
+        // Buscar conquistas com status
+        try {
+          const conquistasData = await conquistaService.listarTodasComStatus(userData.perfilId);
+          setConquistas(conquistasData);
+        } catch (e) {
+          console.warn('Não foi possível carregar conquistas', e);
         }
 
         setHome({
@@ -384,7 +401,158 @@ export function Home() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Seção de Conquistas */}
+        <Card>
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-600" />
+                <span className="text-base font-semibold">Conquistas</span>
+              </div>
+              {conquistas && (
+                <span className="text-sm text-muted-foreground">
+                  {conquistas.totalConquistadas} / {conquistas.totalGeral}
+                </span>
+              )}
+            </div>
+            
+            {conquistas && conquistas.conquistas.length > 0 ? (
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {conquistas.conquistas.map((conquista) => (
+                  <div
+                    key={conquista.id}
+                    onClick={() => setConquistaSelecionada(conquista)}
+                    className={`p-4 rounded-lg border-2 transition-all cursor-pointer hover:shadow-md ${
+                      conquista.concluida
+                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20'
+                        : 'border-gray-200 bg-gray-50 dark:bg-gray-900/50 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          conquista.concluida
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-gray-300 text-gray-500'
+                        }`}
+                      >
+                        <Trophy className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`font-semibold text-sm ${
+                            conquista.concluida ? 'text-amber-900 dark:text-amber-100' : 'text-gray-500'
+                          }`}
+                        >
+                          {conquista.nome}
+                        </p>
+                        <p
+                          className={`text-xs mt-1 ${
+                            conquista.concluida ? 'text-amber-700 dark:text-amber-300' : 'text-gray-400'
+                          }`}
+                        >
+                          {conquista.descricao}
+                        </p>
+                        {conquista.concluida ? (
+                          <span className="inline-block mt-2 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded">
+                            ✓ Conquistada
+                          </span>
+                        ) : (
+                          <span className="inline-block mt-2 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                            Não conquistada
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-sm text-muted-foreground">
+                <Trophy className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                <p>Nenhuma conquista disponível no momento.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Modal de Requisitos da Conquista */}
+      <Dialog open={!!conquistaSelecionada} onOpenChange={(open) => !open && setConquistaSelecionada(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className={`h-5 w-5 ${conquistaSelecionada?.concluida ? 'text-amber-600' : 'text-gray-400'}`} />
+              {conquistaSelecionada?.nome}
+            </DialogTitle>
+            <DialogDescription>{conquistaSelecionada?.descricao}</DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-medium mb-2">Status:</p>
+              {conquistaSelecionada?.concluida ? (
+                <span className="inline-block text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded">
+                  ✓ Conquistada
+                </span>
+              ) : (
+                <span className="inline-block text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded">
+                  Não conquistada
+                </span>
+              )}
+            </div>
+
+            {(conquistaSelecionada?.pesoMinimo || 
+              conquistaSelecionada?.atributoMinimo || 
+              conquistaSelecionada?.repeticoesMinimas || 
+              conquistaSelecionada?.seriesMinimas) && (
+              <div>
+                <p className="text-sm font-medium mb-3">Requisitos mínimos:</p>
+                <div className="space-y-2">
+                  {conquistaSelecionada.pesoMinimo && (
+                    <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900/50 rounded">
+                      <span className="text-sm text-muted-foreground">Peso mínimo:</span>
+                      <span className="text-sm font-medium">{conquistaSelecionada.pesoMinimo} kg</span>
+                    </div>
+                  )}
+                  {conquistaSelecionada.atributoMinimo && 
+                   conquistaSelecionada.tipoAtributo && 
+                   conquistaSelecionada.tipoAtributo.toLowerCase() !== 'peso' && (
+                    <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900/50 rounded">
+                      <span className="text-sm text-muted-foreground">
+                        {conquistaSelecionada.tipoAtributo.charAt(0).toUpperCase() + conquistaSelecionada.tipoAtributo.slice(1)}:
+                      </span>
+                      <span className="text-sm font-medium">{conquistaSelecionada.atributoMinimo}</span>
+                    </div>
+                  )}
+                  {conquistaSelecionada.repeticoesMinimas && (
+                    <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900/50 rounded">
+                      <span className="text-sm text-muted-foreground">Repetições mínimas:</span>
+                      <span className="text-sm font-medium">{conquistaSelecionada.repeticoesMinimas}</span>
+                    </div>
+                  )}
+                  {conquistaSelecionada.seriesMinimas && (
+                    <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900/50 rounded">
+                      <span className="text-sm text-muted-foreground">Séries mínimas:</span>
+                      <span className="text-sm font-medium">{conquistaSelecionada.seriesMinimas}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!conquistaSelecionada?.pesoMinimo && 
+             !conquistaSelecionada?.atributoMinimo && 
+             !conquistaSelecionada?.repeticoesMinimas && 
+             !conquistaSelecionada?.seriesMinimas && (
+              <div className="text-sm text-muted-foreground text-center py-4">
+                Esta conquista não possui requisitos específicos definidos.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
