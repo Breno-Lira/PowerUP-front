@@ -80,7 +80,7 @@ export function Perfil() {
   const [salvando, setSalvando] = useState(false);
   const [erroEditar, setErroEditar] = useState<string | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
-  
+
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData.email;
@@ -93,7 +93,7 @@ export function Perfil() {
 
   const carregarConquistas = async () => {
     if (!userPerfilId) return;
-    
+
     setCarregandoConquistas(true);
     try {
       // Buscar apenas as conquistas que o usuário conquistou
@@ -121,7 +121,7 @@ export function Perfil() {
       // Carregar dados do perfil
       const perfilData = await perfilService.obterPorId(userPerfilId);
       setPerfilResumo(perfilData);
-      
+
       // Carregar avatar e atributos
       let avatar: AvatarResumo | null = null;
       let atributos: AtributosCalculados | null = null;
@@ -154,7 +154,7 @@ export function Perfil() {
         nivel: avatar?.nivel || 1,
         titulo: 'Lobo', // TODO: Implementar sistema de títulos
         totalTreinos: totalTreinos,
-        xpTotal: avatar?.experiencia || 0,
+        xpTotal: avatar ? (avatar.nivel - 1) * 100 + (avatar.experiencia || 0) : 0,
         atributos: {
           forca: atributos?.forca || avatar?.forca || 0,
           resistencia: atributos?.resistencia || 0,
@@ -162,7 +162,7 @@ export function Perfil() {
           agilidade: atributos?.agilidade || 0,
           flexibilidade: avatar?.nivel ? Math.round(avatar.nivel * 1.5) : 0, // Calculado baseado no nível
         },
-        conquistasSelecionadas: perfilData.conquistasSelecionadas 
+        conquistasSelecionadas: perfilData.conquistasSelecionadas
           ? perfilData.conquistasSelecionadas.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
           : [],
       };
@@ -179,7 +179,7 @@ export function Perfil() {
       setEditandoUsername(perfilResumo.username);
       setEditandoFoto(perfilResumo.foto);
       // Carregar conquistas selecionadas
-      const conquistasIds = perfilResumo.conquistasSelecionadas 
+      const conquistasIds = perfilResumo.conquistasSelecionadas
         ? perfilResumo.conquistasSelecionadas.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
         : [];
       setEditandoConquistas(conquistasIds);
@@ -202,8 +202,8 @@ export function Perfil() {
 
     try {
       // Converter array de IDs para string separada por vírgula
-      const conquistasSelecionadasStr = editandoConquistas.length > 0 
-        ? editandoConquistas.join(',') 
+      const conquistasSelecionadasStr = editandoConquistas.length > 0
+        ? editandoConquistas.join(',')
         : null;
 
       const perfilAtualizado = await perfilService.atualizar(userPerfilId, {
@@ -214,12 +214,12 @@ export function Perfil() {
 
       setPerfilResumo(perfilAtualizado);
       if (perfil) {
-        const conquistasIds = perfilAtualizado.conquistasSelecionadas 
+        const conquistasIds = perfilAtualizado.conquistasSelecionadas
           ? perfilAtualizado.conquistasSelecionadas.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
           : [];
         setPerfil({ ...perfil, username: perfilAtualizado.username, conquistasSelecionadas: conquistasIds });
       }
-      
+
       // Atualizar localStorage se necessário
       const userDataAtualizado = { ...userData, username: perfilAtualizado.username };
       localStorage.setItem('user', JSON.stringify(userDataAtualizado));
@@ -266,7 +266,7 @@ export function Perfil() {
           const canvas = document.createElement('canvas');
           const MAX_WIDTH = 800;
           const MAX_HEIGHT = 800;
-          
+
           let width = img.width;
           let height = img.height;
 
@@ -290,7 +290,7 @@ export function Perfil() {
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height);
-            
+
             // Converter para base64 com compressão (qualidade 0.8)
             const base64String = canvas.toDataURL('image/jpeg', 0.8);
             setEditandoFoto(base64String);
@@ -411,7 +411,7 @@ export function Perfil() {
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
-              
+
               {/* Informações do usuário logado */}
               <div className="mt-6 mb-6 pb-6 border-b">
                 <div className="flex items-center gap-3 px-4">
@@ -593,11 +593,10 @@ export function Perfil() {
                   {avatarDetalhe.acessorios.map((acc) => (
                     <label
                       key={acc.id}
-                      className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                        acessoriosSelecionados.includes(acc.id)
+                      className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${acessoriosSelecionados.includes(acc.id)
                           ? 'border-primary bg-primary/5'
                           : 'hover:bg-accent/50'
-                      }`}
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -685,8 +684,8 @@ export function Perfil() {
                     </p>
                   </div>
                 </div>
-                <Progress 
-                  value={Math.min((perfil.xpTotal / 100) * 100, 100)} 
+                <Progress
+                  value={Math.min((perfil.xpTotal / 100) * 100, 100)}
                   className="h-3"
                 />
               </div>
@@ -760,15 +759,14 @@ export function Perfil() {
                   {conquistasRecent.map((conquista) => {
                     const icone = getIconePorNome(conquista.nome);
                     const isSelected = perfil.conquistasSelecionadas.includes(conquista.id);
-                    
+
                     return (
                       <div
                         key={conquista.id}
-                        className={`p-4 rounded-lg border-2 transition-all ${
-                          isSelected
+                        className={`p-4 rounded-lg border-2 transition-all ${isSelected
                             ? 'border-primary bg-primary/5'
                             : 'border-border hover:border-primary/50'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3 flex-1">
@@ -872,7 +870,7 @@ export function Perfil() {
                       const isSelected = editandoConquistas.includes(conquista.id);
                       const canSelect = isSelected || editandoConquistas.length < 3;
                       const icone = getIconePorNome(conquista.nome);
-                      
+
                       return (
                         <div
                           key={conquista.id}

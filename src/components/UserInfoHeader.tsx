@@ -38,7 +38,7 @@ export function UserInfoHeader({ className = '', variant = 'inline' }: UserInfoH
 
   if (!perfilId || !userEmail) return null;
 
-  const xpTotal = avatar ? (avatar.nivel - 1) * 100 + (avatar.experiencia ?? 0) : 0;
+  const xpTotal = avatar ? (avatar.experiencia ?? 0) : 0;
 
   const baseClasses =
     variant === 'card'

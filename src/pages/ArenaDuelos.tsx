@@ -384,17 +384,12 @@ export function ArenaDuelos() {
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-1">
                             <div>
-                              <p className="font-semibold">Duelo #{duelo.id ?? '—'}</p>
+                              <p className="font-semibold">{nome1} vs {nome2}</p>
                               <p className="text-sm text-muted-foreground">{dataStr}</p>
                             </div>
                             <Badge variant={tipoResultado === 'vitoria' ? 'default' : tipoResultado === 'empate' ? 'secondary' : 'destructive'}>
                               {tipoResultado === 'vitoria' ? 'Vitória' : tipoResultado === 'empate' ? 'Empate' : 'Derrota'}
                             </Badge>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm mt-2 text-muted-foreground">
-                            <span>{nome1}</span>
-                            <span>vs</span>
-                            <span>{nome2}</span>
                           </div>
                         </div>
                       </div>

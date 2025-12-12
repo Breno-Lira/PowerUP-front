@@ -12,7 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { perfilService, PerfilResumo, avatarService, AvatarResumo, rankingService, RankingEntry } from '@/services/api';
+import { perfilService, PerfilResumo, avatarService, AvatarResumo, rankingService, RankingEntry, AtributosCalculados } from '@/services/api';
 
 interface HomeData {
   xpAtual: number;
@@ -20,8 +20,6 @@ interface HomeData {
   treinosCompletos: number;
   treinosTotal: number;
   rank: string;
-  atributo1: number;
-  atributo2: number;
 }
 
 export function Home() {
@@ -32,7 +30,8 @@ export function Home() {
   const [avatar, setAvatar] = useState<AvatarResumo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [posicaoRanking, setPosicaoRanking] = useState<RankingEntry | null>(null);
-  
+  const [atributos, setAtributos] = useState<AtributosCalculados | null>(null);
+
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData.email;
@@ -54,6 +53,14 @@ export function Home() {
         setPerfil(perfilResp);
         setAvatar(avatarResp);
 
+        // Buscar atributos calculados do avatar
+        try {
+          const atributosResp = await avatarService.obterAtributos(avatarResp.id);
+          setAtributos(atributosResp);
+        } catch (e) {
+          console.warn('Não foi possível carregar atributos do avatar', e);
+        }
+
         // Ranking global: busca posição do usuário
         try {
           const rankingGlobal = await rankingService.global();
@@ -74,8 +81,6 @@ export function Home() {
           treinosCompletos: 0,
           treinosTotal: 0,
           rank: '—',
-          atributo1: avatarResp.forca ?? 0,
-          atributo2: avatarResp.nivel ?? 0,
         });
       } catch (e: any) {
         console.error(e);
@@ -149,7 +154,7 @@ export function Home() {
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
-              
+
               {/* Informações do usuário logado */}
               <div className="mt-6 mb-6 pb-6 border-b">
                 <div className="flex items-center gap-3 px-4">
@@ -318,24 +323,37 @@ export function Home() {
           <CardContent className="pt-6 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-base font-semibold">Atributos</span>
-              <span className="text-sm text-muted-foreground">Rumo ao próximo nível</span>
+              <span className="text-sm text-muted-foreground">Estatísticas do avatar</span>
             </div>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">Atributo 1</span>
-                  <span className="text-muted-foreground">{home.atributo1}%</span>
+            {atributos ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">Força</span>
+                    <span className="text-muted-foreground">{atributos.forca}</span>
+                  </div>
+                  <Progress value={Math.min((atributos.forca / 100) * 100, 100)} />
                 </div>
-                <Progress value={home.atributo1} />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">Atributo 2</span>
-                  <span className="text-muted-foreground">{home.atributo2}%</span>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">Resistência</span>
+                    <span className="text-muted-foreground">{atributos.resistencia}</span>
+                  </div>
+                  <Progress value={Math.min((atributos.resistencia / 100) * 100, 100)} />
                 </div>
-                <Progress value={home.atributo2} />
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">Agilidade</span>
+                    <span className="text-muted-foreground">{atributos.agilidade}</span>
+                  </div>
+                  <Progress value={Math.min((atributos.agilidade / 100) * 100, 100)} />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-4 text-sm text-muted-foreground">
+                Carregando atributos...
+              </div>
+            )}
           </CardContent>
         </Card>
 
