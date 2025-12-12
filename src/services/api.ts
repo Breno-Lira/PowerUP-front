@@ -222,6 +222,7 @@ export interface Feedback {
   feedback: string;
   email: string;
   data: string;
+  nomePlanoTreino: string | null;
 }
 
 export interface CriarFeedbackRequest {

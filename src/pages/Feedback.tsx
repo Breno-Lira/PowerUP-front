@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { feedbackService, perfilService, ClassificacaoFeedback, PerfilResumo } from '@/services/api';
+import { feedbackService, perfilService, frequenciaService, ClassificacaoFeedback, PerfilResumo, FrequenciaResumo } from '@/services/api';
 import { UserInfoHeader } from '@/components/UserInfoHeader';
 
 interface Feedback {
@@ -43,6 +43,9 @@ export function Feedback() {
   const [feedbackEditando, setFeedbackEditando] = useState<Feedback | null>(null);
   const [novaClassificacao, setNovaClassificacao] = useState<ClassificacaoFeedback>('Bom');
   const [novaDescricao, setNovaDescricao] = useState('');
+  const [dataSelecionada, setDataSelecionada] = useState<string>('');
+  const [frequenciasDisponiveis, setFrequenciasDisponiveis] = useState<FrequenciaResumo[]>([]);
+  const [frequenciaSelecionada, setFrequenciaSelecionada] = useState<FrequenciaResumo | null>(null);
 
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
@@ -68,10 +71,31 @@ export function Feedback() {
       perfilService.obterPorId(userData.perfilId)
         .then(setPerfilUsuario)
         .catch(console.error);
+      
+      // Carregar frequências para o campo de data
+      carregarFrequencias();
     }
     
     carregarFeedbacks();
   }, [userData?.perfilId]);
+
+  const carregarFrequencias = async () => {
+    if (!userData?.perfilId) return;
+    
+    try {
+      const frequencias = await frequenciaService.listarPorPerfil(userData.perfilId);
+      // Ordenar por data (mais recente primeiro) e remover duplicatas por data
+      const frequenciasUnicas = frequencias
+        .sort((a, b) => new Date(b.dataDePresenca).getTime() - new Date(a.dataDePresenca).getTime())
+        .filter((freq, index, self) => {
+          const dataFreq = new Date(freq.dataDePresenca).toDateString();
+          return index === self.findIndex(f => new Date(f.dataDePresenca).toDateString() === dataFreq);
+        });
+      setFrequenciasDisponiveis(frequenciasUnicas);
+    } catch (error) {
+      console.error('Erro ao carregar frequências:', error);
+    }
+  };
 
   const carregarFeedbacks = async () => {
     if (!userEmail) {
@@ -130,6 +154,8 @@ export function Feedback() {
     setFeedbackEditando(null);
     setNovaClassificacao('Bom');
     setNovaDescricao('');
+    setDataSelecionada('');
+    setFrequenciaSelecionada(null);
     setShowDialog(true);
   };
 
@@ -137,6 +163,9 @@ export function Feedback() {
     setFeedbackEditando(feedback);
     setNovaClassificacao(feedback.classificacao);
     setNovaDescricao(feedback.feedback);
+    // Para edição, não permitir alterar a data/frequência
+    setDataSelecionada('');
+    setFrequenciaSelecionada(null);
     setShowDialog(true);
   };
 
@@ -151,6 +180,11 @@ export function Feedback() {
       return;
     }
 
+    if (!feedbackEditando && !frequenciaSelecionada) {
+      setError('Selecione uma data com frequência registrada');
+      return;
+    }
+
     try {
       setError('');
       if (feedbackEditando) {
@@ -160,9 +194,9 @@ export function Feedback() {
           descricao: novaDescricao,
         });
       } else {
-        // Criar novo feedback
+        // Criar novo feedback usando a frequência selecionada
         await feedbackService.criar({
-          frequenciaId: 1, // Valor padrão, será gerado automaticamente pelo backend
+          frequenciaId: frequenciaSelecionada!.id,
           email: userEmail,
           classificacao: novaClassificacao,
           descricao: novaDescricao,
@@ -307,6 +341,11 @@ export function Feedback() {
                         <p className="text-sm text-muted-foreground">
                           {formatarData(feedback.data)}
                         </p>
+                        {feedback.nomePlanoTreino && (
+                          <p className="text-sm font-medium mt-1">
+                            Plano: {feedback.nomePlanoTreino}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -352,6 +391,42 @@ export function Feedback() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {!feedbackEditando && (
+              <div className="space-y-2">
+                <Label htmlFor="dataFrequencia">Data do Treino</Label>
+                <select
+                  id="dataFrequencia"
+                  value={dataSelecionada}
+                  onChange={(e) => {
+                    const dataSelecionada = e.target.value;
+                    setDataSelecionada(dataSelecionada);
+                    // Buscar a frequência correspondente à data selecionada
+                    const frequencia = frequenciasDisponiveis.find(f => {
+                      const dataFreq = new Date(f.dataDePresenca).toISOString().split('T')[0];
+                      return dataFreq === dataSelecionada;
+                    });
+                    setFrequenciaSelecionada(frequencia || null);
+                  }}
+                  className="w-full px-3 py-2 border rounded-md bg-background"
+                  required
+                >
+                  <option value="">Selecione uma data</option>
+                  {frequenciasDisponiveis.map((freq) => {
+                    const dataFreq = new Date(freq.dataDePresenca).toISOString().split('T')[0];
+                    const dataFormatada = new Date(freq.dataDePresenca).toLocaleDateString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    });
+                    return (
+                      <option key={freq.id} value={dataFreq}>
+                        {dataFormatada}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="classificacao">Sensação</Label>
               <select
