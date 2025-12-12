@@ -71,12 +71,12 @@ const TIPO_REFEICAO_MAP: Record<TipoRefeicao, { nome: string; horario: string }>
 
 export function Nutricao() {
   const navigate = useNavigate();
-  
+
   // Obter dados do usuário logado
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [nutricao, setNutricao] = useState<NutricaoData>({
@@ -191,10 +191,10 @@ export function Nutricao() {
           }
         }
       }
-      
+
       // Armazenar todos os planos
       setTodosPlanos(planos);
-      
+
       if (planos.length > 0) {
         // Se não há plano selecionado, usar o último criado (maior ID)
         let planoAtivo: PlanoNutricional | undefined;
@@ -203,14 +203,14 @@ export function Nutricao() {
           planoAtivo = planos.find(p => p.id.id === planoSelecionadoId);
           if (!planoAtivo) {
             // Se o plano selecionado não existe mais, usar o último criado
-            planoAtivo = planos.reduce((prev, current) => 
+            planoAtivo = planos.reduce((prev, current) =>
               (current.id.id > prev.id.id) ? current : prev
             );
             setPlanoSelecionadoId(planoAtivo.id.id);
           }
         } else {
           // Pegar o último plano criado (maior ID)
-          planoAtivo = planos.reduce((prev, current) => 
+          planoAtivo = planos.reduce((prev, current) =>
             (current.id.id > prev.id.id) ? current : prev
           );
           setPlanoSelecionadoId(planoAtivo.id.id);
@@ -221,7 +221,7 @@ export function Nutricao() {
           planoAtivo = planos[0];
           setPlanoSelecionadoId(planoAtivo.id.id);
         }
-        
+
         // Carregar refeições
         const todasRefeicoes = await nutricaoService.listarRefeicoes();
         console.log('[FRONTEND] Plano ativo selecionado:', {
@@ -233,7 +233,7 @@ export function Nutricao() {
           id: r.id?.id || r.id,
           tipo: r.tipo
         })));
-        
+
         // Extrair IDs de refeições do plano (pode ser array de objetos {id: number} ou array de números)
         const refeicoesIdsDoPlano: number[] = planoAtivo.refeicoes?.map((ref) => {
           // Se ref é um objeto com propriedade id, retornar ref.id
@@ -243,19 +243,19 @@ export function Nutricao() {
           }
           return ref as number;
         }) || [];
-        
+
         console.log('[FRONTEND] IDs de refeições do plano ativo:', refeicoesIdsDoPlano);
-        
+
         // Filtrar refeições que pertencem ao plano ativo
         const refeicoesDoPlano = todasRefeicoes.filter((r) => {
-          const refeicaoId: number = (r.id && typeof r.id === 'object' && 'id' in r.id) 
-            ? (r.id as { id: number }).id 
+          const refeicaoId: number = (r.id && typeof r.id === 'object' && 'id' in r.id)
+            ? (r.id as { id: number }).id
             : (r.id as number);
           const pertence = refeicoesIdsDoPlano.includes(refeicaoId);
           console.log(`[FRONTEND] Refeição ID ${refeicaoId} pertence ao plano ${planoAtivo.id.id}? ${pertence}`);
           return pertence;
         });
-        
+
         console.log('[FRONTEND] Refeições filtradas para o plano:', refeicoesDoPlano.map(r => ({
           id: r.id?.id || r.id,
           tipo: r.tipo
@@ -287,15 +287,35 @@ export function Nutricao() {
         const caloriasRestantes = Math.max(0, metaCalorias - caloriasConsumidas);
         const percentual = Math.round((caloriasConsumidas / metaCalorias) * 100);
 
+        // Calcular macronutrientes somando os gramas de cada categoria
+        let proteinas = 0;
+        let carboidratos = 0;
+        let gorduras = 0;
+
+        refeicoesDoPlano.forEach((refeicao) => {
+          refeicao.alimentos.forEach((alimentoRef) => {
+            const alimentoInfo = alimentos.find(ali => ali.id === alimentoRef.id);
+            if (alimentoInfo) {
+              if (alimentoInfo.categoria === 'Proteina') {
+                proteinas += alimentoInfo.gramas;
+              } else if (alimentoInfo.categoria === 'Carboidrato') {
+                carboidratos += alimentoInfo.gramas;
+              } else if (alimentoInfo.categoria === 'Gordura') {
+                gorduras += alimentoInfo.gramas;
+              }
+            }
+          });
+        });
+
         setNutricao({
           objetivo: planoAtivo.objetivo,
           metaCalorias,
           caloriasConsumidas,
           caloriasRestantes,
           percentual,
-          proteinas: 0, // TODO: Calcular macronutrientes
-          carboidratos: 0,
-          gorduras: 0,
+          proteinas,
+          carboidratos,
+          gorduras,
           refeicoes: refeicoesDisplay,
           planoId: planoAtivo.id.id,
         });
@@ -329,7 +349,7 @@ export function Nutricao() {
     try {
       // Salvar o plano selecionado atual antes de criar o novo
       const planoAnteriorId = planoSelecionadoId;
-      
+
       const plano = await nutricaoService.criarPlano({
         objetivo: novoPlano.objetivo,
         refeicoesIds: [], // SEMPRE criar plano vazio, sem refeições
@@ -346,10 +366,10 @@ export function Nutricao() {
 
       // Selecionar o novo plano criado
       setPlanoSelecionadoId(plano.id.id);
-      
+
       // Recarregar dados - isso deve manter as refeições do plano anterior no plano anterior
       await carregarDados();
-      
+
       setShowCriarPlanoDialog(false);
       setNovoPlano({ objetivo: 'Bulking', metaCalorias: 2500 }); // Resetar formulário
     } catch (err: any) {
@@ -362,7 +382,7 @@ export function Nutricao() {
     if (planoSelecionadoId === planoId) {
       return;
     }
-    
+
     // Atualizar o plano selecionado imediatamente para feedback visual
     setPlanoSelecionadoId(planoId);
     // Recarregar dados para atualizar a visualização
@@ -396,8 +416,8 @@ export function Nutricao() {
 
     try {
       // Usar os alimentos selecionados
-      const alimentosIds = alimentosSelecionados.length > 0 
-        ? alimentosSelecionados 
+      const alimentosIds = alimentosSelecionados.length > 0
+        ? alimentosSelecionados
         : novaRefeicao.alimentosIds;
 
       const refeicao = await nutricaoService.criarRefeicao({
@@ -421,11 +441,11 @@ export function Nutricao() {
         }
         return ref as number;
       }) || [];
-      
+
       const novoRefeicaoId = typeof refeicao.id === 'object' && refeicao.id !== null && 'id' in refeicao.id
         ? (refeicao.id as { id: number }).id
         : (refeicao.id as number);
-      
+
       console.log('[FRONTEND] Adicionando refeição ao plano:', {
         planoId: planoSelecionadoId,
         objetivo: planoAtivo.objetivo,
@@ -433,7 +453,7 @@ export function Nutricao() {
         novoRefeicaoId,
         refeicoesIdsFinais: [...refeicoesIdsAtuais, novoRefeicaoId]
       });
-      
+
       await nutricaoService.modificarPlano({
         planoId: planoSelecionadoId,
         objetivo: planoAtivo.objetivo,
@@ -449,7 +469,7 @@ export function Nutricao() {
         alimentosIds: [],
       });
       setShowRefeicaoDialog(false);
-      
+
       // Recarregar dados para atualizar a lista de refeições
       await carregarDados();
     } catch (err: any) {
@@ -537,7 +557,7 @@ export function Nutricao() {
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
-              
+
               {/* Informações do usuário logado */}
               <div className="mt-6 mb-6 pb-6 border-b">
                 <div className="flex items-center gap-3 px-4">
@@ -628,11 +648,10 @@ export function Nutricao() {
                 {todosPlanos.map((plano) => (
                   <Card
                     key={plano.id.id}
-                    className={`cursor-pointer transition-all relative ${
-                      planoSelecionadoId === plano.id.id
+                    className={`cursor-pointer transition-all relative ${planoSelecionadoId === plano.id.id
                         ? 'ring-2 ring-primary bg-primary/5'
                         : 'hover:bg-accent/50'
-                    }`}
+                      }`}
                     onClick={() => handleSelecionarPlano(plano.id.id)}
                   >
                     <CardContent className="pt-4">
@@ -789,57 +808,57 @@ export function Nutricao() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-            {nutricao.refeicoes.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhuma refeição cadastrada. Clique em "Adicionar Refeição" para começar.
-              </p>
-            ) : (
-              nutricao.refeicoes.map((refeicao) => (
-                <div key={refeicao.id} className="space-y-3">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <div>
-                      <h3 className="font-semibold">{refeicao.nome}</h3>
-                      <p className="text-sm text-muted-foreground">{refeicao.horario}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold">{refeicao.totalCalorias} cal</p>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleExcluirRefeicao(refeicao.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2 pl-4">
-                    {refeicao.alimentos.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Nenhum alimento cadastrado
-                      </p>
-                    ) : (
-                      refeicao.alimentos.map((alimento) => (
-                        <div
-                          key={alimento.id}
-                          className="flex items-center justify-between text-sm"
+              {nutricao.refeicoes.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma refeição cadastrada. Clique em "Adicionar Refeição" para começar.
+                </p>
+              ) : (
+                nutricao.refeicoes.map((refeicao) => (
+                  <div key={refeicao.id} className="space-y-3">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <div>
+                        <h3 className="font-semibold">{refeicao.nome}</h3>
+                        <p className="text-sm text-muted-foreground">{refeicao.horario}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold">{refeicao.totalCalorias} cal</p>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleExcluirRefeicao(refeicao.id)}
                         >
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{alimento.nome}</span>
-                            <span className="text-muted-foreground">
-                              {alimento.gramas}
-                            </span>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2 pl-4">
+                      {refeicao.alimentos.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Nenhum alimento cadastrado
+                        </p>
+                      ) : (
+                        refeicao.alimentos.map((alimento) => (
+                          <div
+                            key={alimento.id}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{alimento.nome}</span>
+                              <span className="text-muted-foreground">
+                                {alimento.gramas}
+                              </span>
+                            </div>
+                            <span className="text-muted-foreground">{alimento.calorias} cal</span>
                           </div>
-                          <span className="text-muted-foreground">{alimento.calorias} cal</span>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                ))
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
 
@@ -958,9 +977,8 @@ export function Nutricao() {
                     className="pl-9 pr-9"
                   />
                   <ChevronDown
-                    className={`absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform ${
-                      mostrarDropdownAlimentos ? 'rotate-180' : ''
-                    }`}
+                    className={`absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform ${mostrarDropdownAlimentos ? 'rotate-180' : ''
+                      }`}
                   />
                 </div>
                 {mostrarDropdownAlimentos && (
