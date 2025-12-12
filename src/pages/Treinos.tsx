@@ -299,6 +299,23 @@ export function Treinos() {
   ];
 
 
+  const formatarTempo = (tempoStr: string | null): string => {
+    if (!tempoStr) return '—';
+    // O tempo vem como "HH:mm:ss" do backend
+    // Se vier como ISO string, extrair apenas a parte de tempo
+    try {
+      if (tempoStr.includes('T')) {
+        // Formato ISO: extrair apenas HH:mm:ss
+        const partes = tempoStr.split('T')[1]?.split('.')[0] || tempoStr;
+        return partes.substring(0, 8); // HH:mm:ss
+      }
+      // Já está no formato HH:mm:ss
+      return tempoStr.substring(0, 8);
+    } catch {
+      return tempoStr;
+    }
+  };
+
   const handleEditar = (planoId: number | null) => {
     const plano = [...planosAtivos, ...planosHistoricos].find((p) => p.id === planoId);
     if (plano) {
@@ -308,18 +325,44 @@ export function Treinos() {
   };
 
   const handleAdicionarExercicio = async () => {
-    if (!planoEditando || !novoExercicio.exercicioId || !novoExercicio.repeticoes) {
+    if (!planoEditando || !novoExercicio.exercicioId) {
       setErro('Preencha todos os campos obrigatórios.');
       return;
     }
 
-    const repeticoes = parseInt(novoExercicio.repeticoes);
-    const series = parseInt(novoExercicio.series) || 3;
-    const peso = parseFloat(novoExercicio.peso) || 0;
-    const distancia = novoExercicio.distancia ? parseFloat(novoExercicio.distancia) : null;
-    const tempo = novoExercicio.tempo ? new Date(novoExercicio.tempo).toISOString() : null;
+    // Validação condicional baseada no tipo
+    if (novoExercicio.tipo === 'Peso') {
+      if (!novoExercicio.repeticoes) {
+        setErro('Preencha todos os campos obrigatórios.');
+        return;
+      }
+    } else if (novoExercicio.tipo === 'Cardio') {
+      // Para cardio, não precisa de repeticoes, peso ou series
+    }
 
-    if (isNaN(repeticoes) || isNaN(series)) {
+    const repeticoes = novoExercicio.tipo === 'Peso' ? parseInt(novoExercicio.repeticoes) : null;
+    const series = novoExercicio.tipo === 'Peso' ? (parseInt(novoExercicio.series) || 3) : null;
+    const peso = novoExercicio.tipo === 'Peso' ? (parseFloat(novoExercicio.peso) || 0) : null;
+    const distancia = novoExercicio.distancia ? parseFloat(novoExercicio.distancia) : null;
+    
+    // Converter tempo de duração (HH:MM) para LocalDateTime
+    // Usamos uma data base (1970-01-01) e adicionamos o tempo informado
+    // Formato: "1970-01-01THH:MM:SS" (sem fuso horário, para representar apenas duração)
+    let tempo = null;
+    if (novoExercicio.tempo) {
+      const partes = novoExercicio.tempo.split(':');
+      const horas = parseInt(partes[0]) || 0;
+      const minutos = parseInt(partes[1]) || 0;
+      const segundos = parseInt(partes[2]) || 0;
+      
+      // Formatar como LocalDateTime (sem Z no final para evitar conversão de fuso)
+      const horasStr = String(horas).padStart(2, '0');
+      const minutosStr = String(minutos).padStart(2, '0');
+      const segundosStr = String(segundos).padStart(2, '0');
+      tempo = `1970-01-01T${horasStr}:${minutosStr}:${segundosStr}`;
+    }
+
+    if (novoExercicio.tipo === 'Peso' && (isNaN(repeticoes!) || isNaN(series!))) {
       setErro('Repetições e séries devem ser números válidos.');
       return;
     }
@@ -775,7 +818,11 @@ export function Treinos() {
                                             {exercicio?.nome || `Exercício ${treino.exercicioId}`}
                                           </span>
                                           <span className="text-sm text-muted-foreground">
-                                            {treino.series}x{treino.repeticoes} {treino.peso > 0 ? `- ${treino.peso}kg` : ''}
+                                            {treino.tipo === 'Cardio' ? (
+                                              formatarTempo(treino.tempo)
+                                            ) : (
+                                              `${treino.series}x${treino.repeticoes} ${treino.peso > 0 ? `- ${treino.peso}kg` : ''}`
+                                            )}
                                           </span>
                                         </div>
                                       </label>
@@ -835,7 +882,11 @@ export function Treinos() {
                                       {exercicio?.nome || `Exercício ${treino.exercicioId}`}
                                     </span>
                                     <span className="text-sm text-muted-foreground ml-2">
-                                      {treino.series}x{treino.repeticoes} {treino.peso > 0 ? `- ${treino.peso}kg` : ''}
+                                      {treino.tipo === 'Cardio' ? (
+                                        formatarTempo(treino.tempo)
+                                      ) : (
+                                        `${treino.series}x${treino.repeticoes} ${treino.peso > 0 ? `- ${treino.peso}kg` : ''}`
+                                      )}
                                     </span>
                                   </div>
                                 );
@@ -1496,45 +1547,49 @@ export function Treinos() {
               </select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="peso">Peso (kg):</Label>
-              <Input
-                id="peso"
-                type="number"
-                step="0.1"
-                placeholder="Peso em kg"
-                value={novoExercicio.peso}
-                onChange={(e) =>
-                  setNovoExercicio({ ...novoExercicio, peso: e.target.value })
-                }
-              />
-            </div>
+            {novoExercicio.tipo !== 'Cardio' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="peso">Peso (kg):</Label>
+                  <Input
+                    id="peso"
+                    type="number"
+                    step="0.1"
+                    placeholder="Peso em kg"
+                    value={novoExercicio.peso}
+                    onChange={(e) =>
+                      setNovoExercicio({ ...novoExercicio, peso: e.target.value })
+                    }
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="repeticoes">Repetições:</Label>
-              <Input
-                id="repeticoes"
-                type="number"
-                placeholder="Número de repetições"
-                value={novoExercicio.repeticoes}
-                onChange={(e) =>
-                  setNovoExercicio({ ...novoExercicio, repeticoes: e.target.value })
-                }
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="repeticoes">Repetições:</Label>
+                  <Input
+                    id="repeticoes"
+                    type="number"
+                    placeholder="Número de repetições"
+                    value={novoExercicio.repeticoes}
+                    onChange={(e) =>
+                      setNovoExercicio({ ...novoExercicio, repeticoes: e.target.value })
+                    }
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="series">Séries:</Label>
-              <Input
-                id="series"
-                type="number"
-                placeholder="Número de séries"
-                value={novoExercicio.series}
-                onChange={(e) =>
-                  setNovoExercicio({ ...novoExercicio, series: e.target.value })
-                }
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="series">Séries:</Label>
+                  <Input
+                    id="series"
+                    type="number"
+                    placeholder="Número de séries"
+                    value={novoExercicio.series}
+                    onChange={(e) =>
+                      setNovoExercicio({ ...novoExercicio, series: e.target.value })
+                    }
+                  />
+                </div>
+              </>
+            )}
 
             {novoExercicio.tipo === 'Cardio' && (
               <>
@@ -1553,15 +1608,19 @@ export function Treinos() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="tempo">Tempo:</Label>
+                  <Label htmlFor="tempo">Tempo (duração):</Label>
                   <Input
                     id="tempo"
-                    type="datetime-local"
+                    type="time"
+                    step="1"
                     value={novoExercicio.tempo}
                     onChange={(e) =>
                       setNovoExercicio({ ...novoExercicio, tempo: e.target.value })
                     }
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Informe a duração do treino (ex: 00:30 para 30 minutos)
+                  </p>
                 </div>
               </>
             )}
@@ -1579,7 +1638,7 @@ export function Treinos() {
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-2" />
-                  add +
+                  Adicionar
                 </>
               )}
             </Button>

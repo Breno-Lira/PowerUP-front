@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { perfilService, PerfilResumo, avatarService, AvatarResumo, rankingService, RankingEntry, AtributosCalculados, conquistaService, ConquistaResumo, ConquistasComStatusResponse } from '@/services/api';
+import { perfilService, PerfilResumo, avatarService, AvatarResumo, rankingService, RankingEntry, AtributosCalculados, conquistaService, ConquistaResumo, ConquistasComStatusResponse, planoTreinoService, frequenciaService } from '@/services/api';
 
 interface HomeData {
   xpAtual: number;
@@ -92,11 +92,60 @@ export function Home() {
           console.warn('Não foi possível carregar conquistas', e);
         }
 
+        // Calcular frequência semanal e meta semanal
+        let treinosCompletos = 0;
+        let treinosTotal = 0;
+        try {
+          // Buscar planos de treino ativos
+          const planos = await planoTreinoService.listarPorUsuario(userEmail);
+          const planosAtivos = planos.filter(p => p.estado === 'Ativo');
+          
+          // Calcular meta semanal (soma de todos os dias de todos os planos ativos)
+          if (planosAtivos.length > 0) {
+            treinosTotal = planosAtivos.reduce((sum, p) => sum + p.dias.length, 0);
+          }
+
+          // Buscar frequências do perfil
+          const frequenciasList = await frequenciaService.listarPorPerfil(userData.perfilId);
+          
+          // Calcular frequência semanal (dias únicos na semana atual)
+          const hoje = new Date();
+          const inicioSemana = new Date(hoje);
+          inicioSemana.setDate(hoje.getDate() - hoje.getDay() + 1); // Segunda-feira
+          inicioSemana.setHours(0, 0, 0, 0);
+          
+          const fimSemana = new Date(inicioSemana);
+          fimSemana.setDate(inicioSemana.getDate() + 6); // Domingo
+          fimSemana.setHours(23, 59, 59, 999);
+          
+          // Contar dias únicos com frequência na semana atual
+          const frequenciasSemanaAtual = frequenciasList
+            .filter(f => {
+              const dataFrequencia = new Date(f.dataDePresenca);
+              return dataFrequencia >= inicioSemana && dataFrequencia <= fimSemana;
+            })
+            .map(f => {
+              const dataFrequencia = new Date(f.dataDePresenca);
+              return dataFrequencia.toDateString(); // Para agrupar por dia
+            });
+          
+          // Contar dias únicos
+          const diasUnicos = new Set(frequenciasSemanaAtual);
+          treinosCompletos = diasUnicos.size;
+          
+          // Se não há planos ativos, usar a frequência como total também
+          if (planosAtivos.length === 0) {
+            treinosTotal = treinosCompletos;
+          }
+        } catch (e) {
+          console.warn('Não foi possível carregar dados de frequência', e);
+        }
+
         setHome({
           xpAtual: avatarResp.experiencia ?? 0,
           xpMaximo: 100,
-          treinosCompletos: 0,
-          treinosTotal: 0,
+          treinosCompletos: treinosCompletos,
+          treinosTotal: treinosTotal,
           rank: '—',
         });
       } catch (e: any) {
