@@ -700,7 +700,7 @@ export function Equipe() {
                         </div>
                         <div className="flex-shrink-0 text-right">
                           <div className="text-2xl font-bold text-primary">
-                            {membro.diasConsecutivos}
+                            {membro.diasConsecutivos ?? 0}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {membro.diasConsecutivos === 1 ? 'dia' : 'dias'}

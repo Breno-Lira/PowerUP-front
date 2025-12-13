@@ -58,8 +58,17 @@ export interface RegistroResponse {
 
 export const authService = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
-    const response = await api.post<LoginResponse>('/auth/login', data);
-    return response.data;
+    try {
+      const response = await api.post<LoginResponse>('/auth/login', data);
+      return response.data;
+    } catch (error: any) {
+      // Se for erro 401 (UNAUTHORIZED), o backend retorna a mensagem no body
+      if (error.response?.status === 401 && error.response?.data) {
+        return error.response.data;
+      }
+      // Para outros erros, lançar novamente
+      throw error;
+    }
   },
 
   registro: async (data: RegistroRequest): Promise<RegistroResponse> => {
@@ -894,8 +903,8 @@ export const equipeService = {
     return response.data;
   },
 
-  obterRanking: async (equipeId: number): Promise<RankingEntry[]> => {
-    const response = await api.get<RankingEntry[]>(`/equipes/${equipeId}/ranking`);
+  obterRanking: async (equipeId: number): Promise<MembroRanking[]> => {
+    const response = await api.get<MembroRanking[]>(`/equipes/${equipeId}/ranking`);
     return response.data;
   },
 };
