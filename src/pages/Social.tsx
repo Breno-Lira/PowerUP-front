@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-// Interface removida - usando EquipeResumo do serviço
+
 
 export function Social() {
   const navigate = useNavigate();
@@ -45,7 +45,7 @@ export function Social() {
     nomeDesafiado: string;
   } | null>(null);
 
-  // Estados para equipes
+  
   const [equipes, setEquipes] = useState<EquipeResumo[]>([]);
   const [carregandoEquipes, setCarregandoEquipes] = useState(false);
   const [erroEquipes, setErroEquipes] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export function Social() {
   const [descricaoNovaEquipe, setDescricaoNovaEquipe] = useState('');
   const [erroCriarEquipe, setErroCriarEquipe] = useState<string | null>(null);
 
-  // Estados para rivalidade
+  
   const [rivalidades, setRivalidades] = useState<RivalidadeResumo[]>([]);
   const [carregandoRivalidades, setCarregandoRivalidades] = useState(false);
   const [rivalidadeAtiva, setRivalidadeAtiva] = useState<RivalidadeResumo | null>(null);
@@ -67,19 +67,19 @@ export function Social() {
   const [erroRivalidade, setErroRivalidade] = useState<string | null>(null);
   const [perfisAmigos, setPerfisAmigos] = useState<Map<string, number>>(new Map());
 
-  // Estados para desempenho/frequência
+  
   const [frequenciaSemanal, setFrequenciaSemanal] = useState(0);
   const [metaSemanal, setMetaSemanal] = useState(0);
   const [carregandoDesempenho, setCarregandoDesempenho] = useState(false);
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
 
-  // Obter email do usuário logado
+  
   const userEmail = JSON.parse(localStorage.getItem('user') || '{}')?.email;
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userPerfilId = userData.perfilId;
   const codigoAmizade = userData.amizadeId ? String(userData.amizadeId) : 'N/A'; // Código de amizade do usuário atual
 
-  // Constantes de recompensa de duelo
+  
   const recompensaMoedas = 25;
   const recompensaXp = 5;
 
@@ -102,7 +102,7 @@ export function Social() {
     setTimeout(() => setCodigoCopiado(false), 2000);
   };
 
-  // Função para recarregar a lista de amigos
+  
   const recarregarAmigos = () => {
     if (userEmail) {
       setCarregandoAmigos(true);
@@ -110,7 +110,7 @@ export function Social() {
       usuarioService
         .listarAmigos(userEmail)
         .then((amigosLista) => {
-          // Filtrar o próprio usuário da lista de amigos
+          
           setAmigos(amigosLista.filter(amigo => amigo.usuarioEmail !== userEmail));
           setCarregandoAmigos(false);
         })
@@ -122,7 +122,7 @@ export function Social() {
     }
   };
 
-  // Função para carregar equipes do usuário
+  
   const carregarEquipes = async () => {
     if (!userEmail) return;
 
@@ -140,7 +140,7 @@ export function Social() {
     }
   };
 
-  // Função para criar equipe
+  
   const handleCriarEquipe = async () => {
     if (!nomeNovaEquipe.trim()) {
       setErroCriarEquipe('Por favor, insira um nome para a equipe.');
@@ -167,7 +167,7 @@ export function Social() {
       setModalCriarEquipeAberto(false);
       setMensagemSucesso('Equipe criada com sucesso!');
 
-      // Recarregar lista de equipes
+      
       await carregarEquipes();
 
       setTimeout(() => setMensagemSucesso(null), 3000);
@@ -180,28 +180,28 @@ export function Social() {
     }
   };
 
-  // Buscar amigos quando a aba de amizades estiver ativa
+  
   useEffect(() => {
     if (abaAtiva === 'amizades' && userEmail) {
       recarregarAmigos();
     }
   }, [abaAtiva, userEmail]);
 
-  // Carregar equipes quando o componente montar
+  
   useEffect(() => {
     if (userEmail) {
       carregarEquipes();
     }
   }, [userEmail]);
 
-  // Carregar rivalidades quando a aba rival estiver ativa
+  
   useEffect(() => {
     if (abaAtiva === 'rival' && userPerfilId) {
       carregarRivalidades();
     }
   }, [abaAtiva, userPerfilId]);
 
-  // Carregar perfis dos amigos quando a lista de amigos mudar
+  
   useEffect(() => {
     const carregarPerfisAmigos = async () => {
       if (amigos.length === 0) {
@@ -228,7 +228,7 @@ export function Social() {
     }
   }, [amigos, abaAtiva]);
 
-  // Carregar comparação quando houver rivalidade ativa
+  
   useEffect(() => {
     const carregarComparacao = async () => {
       if (!rivalidadeAtiva || !userPerfilId) {
@@ -251,7 +251,7 @@ export function Social() {
     carregarComparacao();
   }, [rivalidadeAtiva, userPerfilId]);
 
-  // Carregar perfil para obter foto
+  
   useEffect(() => {
     if (userPerfilId) {
       perfilService.obterPorId(userPerfilId)
@@ -260,14 +260,14 @@ export function Social() {
     }
   }, [userPerfilId]);
 
-  // Carregar desempenho (frequência semanal)
+  
   useEffect(() => {
     const carregarDesempenho = async () => {
       if (!userPerfilId || !userEmail) return;
 
       setCarregandoDesempenho(true);
       try {
-        // Carregar planos de treino ativos
+        
         const planos = await planoTreinoService.listarPorUsuario(userEmail);
         const planosAtivos = planos.filter(p => p.estado === 'Ativo');
 
@@ -277,11 +277,11 @@ export function Social() {
           return;
         }
 
-        // Calcular meta semanal (soma de todos os dias de todos os planos ativos)
+        
         const totalDias = planosAtivos.reduce((sum, p) => sum + p.dias.length, 0);
         setMetaSemanal(totalDias);
 
-        // Calcular frequência semanal de todos os planos ativos
+        
         const frequenciasSemanais = await Promise.all(
           planosAtivos
             .filter(plano => plano.id != null)
@@ -314,7 +314,7 @@ export function Social() {
       const lista = await rivalidadeService.listarPorPerfil(userPerfilId);
       setRivalidades(lista);
 
-      // Encontrar rivalidade ativa
+      
       const ativa = lista.find(r => r.status === 'ATIVA');
       setRivalidadeAtiva(ativa || null);
     } catch (error: any) {
@@ -343,7 +343,7 @@ export function Social() {
     setErroRivalidade(null);
 
     try {
-      // Buscar perfil do amigo
+      
       const perfilAmigo = await perfilService.obterPorEmail(amigoSelecionado.usuarioEmail);
 
       if (!perfilAmigo || !perfilAmigo.id) {
@@ -351,12 +351,11 @@ export function Social() {
         return;
       }
 
-      // Por enquanto, vamos usar exercicioId = 1 como padrão
-      // Isso pode ser melhorado depois para permitir escolher o exercício
+      
       await rivalidadeService.enviarConvite({
         perfil1Id: userPerfilId,
         perfil2Id: perfilAmigo.id,
-        exercicioId: 1, // TODO: Permitir escolher exercício
+        exercicioId: 1, 
       });
 
       setModalEnviarConvite(false);
@@ -364,14 +363,14 @@ export function Social() {
       setMensagemSucesso('Convite de rivalidade enviado com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3000);
 
-      // Recarregar rivalidades
+      
       await carregarRivalidades();
     } catch (error: any) {
       console.error('Erro ao enviar convite:', error);
       let mensagemErro = 'Erro ao enviar convite. Tente novamente.';
 
       if (error.response) {
-        // Se a resposta tem uma mensagem específica
+        
         if (error.response.data?.mensagem) {
           mensagemErro = error.response.data.mensagem;
         } else if (typeof error.response.data === 'string') {
@@ -408,7 +407,7 @@ export function Social() {
       let mensagemErro = 'Erro ao aceitar convite. Tente novamente.';
 
       if (error.response) {
-        // Se a resposta tem uma mensagem específica
+        
         if (error.response.data?.mensagem) {
           mensagemErro = error.response.data.mensagem;
         } else if (typeof error.response.data === 'string') {
@@ -506,7 +505,7 @@ export function Social() {
     }
   };
 
-  // Função para adicionar amigo por código
+  
   const handleDuelar = async (amigo: UsuarioResumo) => {
     if (!userPerfilId) {
       setErroAdicionar('Perfil não encontrado. Faça login novamente.');
@@ -517,7 +516,7 @@ export function Social() {
     setErroAdicionar(null);
 
     try {
-      // Buscar perfil do amigo pelo email
+      
       let perfilAmigo: any;
       try {
         perfilAmigo = await perfilService.obterPorEmail(amigo.usuarioEmail);
@@ -532,11 +531,10 @@ export function Social() {
         return;
       }
 
-      // Realizar duelo (userPerfilId é o desafiante, perfilAmigo.id é o desafiado)
+      
       const duelo = await dueloService.realizarDuelo(userPerfilId, perfilAmigo.id);
 
-      // No backend, avatar1 é sempre o desafiante e avatar2 é sempre o desafiado
-      // Buscar atributos de ambos os avatares
+      
       const atributosDesafiante = await dueloService.obterAtributosAvatar(duelo.avatar1Id);
       const atributosDesafiado = await dueloService.obterAtributosAvatar(duelo.avatar2Id);
 
@@ -552,13 +550,13 @@ export function Social() {
       let errorMessage = 'Erro ao realizar duelo. Tente novamente.';
 
       if (error.response) {
-        // Erro da API
+        
         if (error.response.data) {
-          // Se a resposta é um objeto com message
+          
           if (typeof error.response.data === 'object' && error.response.data.message) {
             errorMessage = error.response.data.message;
           } else if (typeof error.response.data === 'string') {
-            // Se a resposta é uma string
+            
             errorMessage = error.response.data;
           } else {
             errorMessage = error.response.data?.message || error.message || errorMessage;
@@ -567,7 +565,7 @@ export function Social() {
           errorMessage = error.message || errorMessage;
         }
       } else if (error.message) {
-        // Erro de rede ou outro erro
+        
         errorMessage = error.message;
       }
 
@@ -583,7 +581,7 @@ export function Social() {
       return;
     }
 
-    // Confirmar antes de remover
+    
     if (!confirm(`Tem certeza que deseja remover ${amigo.nome} da sua lista de amigos?`)) {
       return;
     }
@@ -594,7 +592,7 @@ export function Social() {
     try {
       await usuarioService.removerAmizade(userEmail, amigo.usuarioEmail);
       setMensagemSucesso(`${amigo.nome} foi removido da sua lista de amigos.`);
-      // Recarregar lista de amigos
+      
       recarregarAmigos();
     } catch (error: any) {
       console.error('Erro ao remover amizade:', error);
@@ -642,7 +640,7 @@ export function Social() {
       const resultado = await usuarioService.adicionarAmigoPorCodigo(userEmail, codigo);
       setMensagemSucesso(resultado || 'Amigo adicionado com sucesso!');
       setCodigoAmizadeInput('');
-      // Recarregar a lista de amigos
+      
       setTimeout(() => {
         recarregarAmigos();
         setMensagemSucesso(null);
@@ -999,8 +997,7 @@ export function Social() {
                         ) : (
                           <div className="space-y-3">
                             {amigos.map((amigo) => {
-                              // Verificar se já existe rivalidade ativa com este amigo
-                              // Permitir múltiplos convites pendentes, mas apenas uma rivalidade ativa
+                              
                               const perfilAmigoId = perfisAmigos.get(amigo.usuarioEmail);
                               const temRivalidadeAtiva = perfilAmigoId && rivalidades.some(r => {
                                 const isParticipante = (r.perfil1 === userPerfilId && r.perfil2 === perfilAmigoId) ||
@@ -1008,7 +1005,7 @@ export function Social() {
                                 return isParticipante && r.status === 'ATIVA';
                               });
 
-                              // Verificar se já existe convite pendente enviado por este usuário
+                              
                               const convitePendente = perfilAmigoId && rivalidades.find(r => {
                                 return r.perfil1 === userPerfilId &&
                                   r.perfil2 === perfilAmigoId &&

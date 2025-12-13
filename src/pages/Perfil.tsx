@@ -25,7 +25,7 @@ import {
 import { perfilService, PerfilResumo, avatarService, AvatarResumo, AtributosCalculados, frequenciaService, conquistaService, ConquistaResumo } from '@/services/api';
 import { Checkbox } from '@/components/ui/checkbox';
 
-// Função para determinar o ícone baseado no nome da conquista
+
 const getIconePorNome = (nome: string): string => {
   const nomeLower = nome.toLowerCase();
   if (nomeLower.includes('gladiador') || nomeLower.includes('força') || nomeLower.includes('bruta')) {
@@ -40,10 +40,10 @@ const getIconePorNome = (nome: string): string => {
   if (nomeLower.includes('velocidade')) {
     return 'trending';
   }
-  return 'activity'; // padrão
+  return 'activity';
 };
 
-// Títulos por nível (mesma lógica do Ranking)
+
 interface TituloRank { nome: string; nivelMin: number }
 const titulosRank: TituloRank[] = [
   { nome: 'Camundongo', nivelMin: 1 },
@@ -66,7 +66,7 @@ const getTituloPorNivel = (nivel: number) => {
   return titulo;
 };
 
-// Emoji por título
+
 const getEmojiPorTitulo = (titulo: string) => {
   switch (titulo) {
     case 'Camundongo':
@@ -118,7 +118,7 @@ export function Perfil() {
   const [erroEditar, setErroEditar] = useState<string | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
-  // Obter dados do usuário logado
+  
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData.email;
   const userPerfilId = userData.perfilId;
@@ -133,10 +133,10 @@ export function Perfil() {
 
     setCarregandoConquistas(true);
     try {
-      // Buscar apenas as conquistas que o usuário conquistou
+      
       const conquistas = await conquistaService.listarPorPerfil(userPerfilId);
       setConquistasDisponiveis(conquistas);
-      // As últimas 5 conquistas como "recentes"
+      
       setConquistasRecent(conquistas.slice(-5).reverse());
     } catch (error) {
       console.error('Erro ao carregar conquistas:', error);
@@ -155,11 +155,11 @@ export function Perfil() {
 
     setLoading(true);
     try {
-      // Carregar dados do perfil
+      
       const perfilData = await perfilService.obterPorId(userPerfilId);
       setPerfilResumo(perfilData);
 
-      // Carregar avatar e atributos
+      
       let avatar: AvatarResumo | null = null;
       let atributosCalculados: AtributosCalculados | null = null;
       try {
@@ -176,7 +176,7 @@ export function Perfil() {
         console.error('Erro ao carregar avatar:', error);
       }
 
-      // Contar total de frequências (idas à academia)
+      
       let totalTreinos = 0;
       try {
         const frequencias = await frequenciaService.listarPorPerfil(userPerfilId);
@@ -185,7 +185,7 @@ export function Perfil() {
         console.error('Erro ao carregar frequências:', error);
       }
 
-      // Montar dados do perfil com informações reais
+      
       const dadosPerfil: PerfilData = {
         id: perfilData.id,
         username: perfilData.username,
@@ -209,7 +209,7 @@ export function Perfil() {
     if (perfilResumo) {
       setEditandoUsername(perfilResumo.username);
       setEditandoFoto(perfilResumo.foto);
-      // Carregar conquistas selecionadas
+      
       const conquistasIds = perfilResumo.conquistasSelecionadas
         ? perfilResumo.conquistasSelecionadas.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
         : [];
@@ -232,7 +232,7 @@ export function Perfil() {
     setErroEditar(null);
 
     try {
-      // Converter array de IDs para string separada por vírgula
+      
       const conquistasSelecionadasStr = editandoConquistas.length > 0
         ? editandoConquistas.join(',')
         : null;
@@ -251,7 +251,7 @@ export function Perfil() {
         setPerfil({ ...perfil, username: perfilAtualizado.username, conquistasSelecionadas: conquistasIds });
       }
 
-      // Atualizar localStorage se necessário
+      
       const userDataAtualizado = { ...userData, username: perfilAtualizado.username };
       localStorage.setItem('user', JSON.stringify(userDataAtualizado));
 
@@ -262,7 +262,7 @@ export function Perfil() {
       }, 1500);
     } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error);
-      // Verificar se é um erro de validação do backend
+      
       if (error.response?.data?.mensagem) {
         setErroEditar(error.response.data.mensagem);
       } else {
@@ -276,24 +276,24 @@ export function Perfil() {
   const handleSelecionarFoto = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validar tipo de arquivo
+      
       if (!file.type.startsWith('image/')) {
         setErroEditar('Por favor, selecione uma imagem válida');
         return;
       }
 
-      // Validar tamanho (máximo 5MB)
+      
       if (file.size > 5 * 1024 * 1024) {
         setErroEditar('A imagem deve ter no máximo 5MB');
         return;
       }
 
-      // Comprimir e converter para base64
+      
       const reader = new FileReader();
       reader.onloadend = () => {
         const img = new Image();
         img.onload = () => {
-          // Criar canvas para redimensionar e comprimir
+          
           const canvas = document.createElement('canvas');
           const MAX_WIDTH = 800;
           const MAX_HEIGHT = 800;
@@ -301,7 +301,7 @@ export function Perfil() {
           let width = img.width;
           let height = img.height;
 
-          // Redimensionar mantendo proporção
+          
           if (width > height) {
             if (width > MAX_WIDTH) {
               height = (height * MAX_WIDTH) / width;
@@ -317,12 +317,12 @@ export function Perfil() {
           canvas.width = width;
           canvas.height = height;
 
-          // Desenhar imagem redimensionada no canvas
+          
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Converter para base64 com compressão (qualidade 0.8)
+            
             const base64String = canvas.toDataURL('image/jpeg', 0.8);
             setEditandoFoto(base64String);
             setErroEditar(null);
@@ -364,10 +364,10 @@ export function Perfil() {
     const acessoriosAtualizados = avatarDetalhe.acessorios.map(acc => {
       const mesmaSubcat = (acc.subcategoria || '__sem_subcat__').toLowerCase() === subcatAlvo;
       if (acc.id === id) {
-        // alterna o alvo
+        
         return { ...acc, equipado: !(acc.equipado ?? false) };
       }
-      // desmarca outros da mesma subcategoria
+      
       if (mesmaSubcat) {
         return { ...acc, equipado: false };
       }

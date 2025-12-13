@@ -45,7 +45,6 @@ export function Equipe() {
   const [ranking, setRanking] = useState<MembroRanking[]>([]);
   const [carregandoRanking, setCarregandoRanking] = useState(false);
 
-  // Obter email do usuário logado
   const userEmail = JSON.parse(localStorage.getItem('user') || '{}')?.email;
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -61,7 +60,6 @@ export function Equipe() {
     { label: 'Arena Duelos', path: '/arena-duelos' },
   ];
 
-  // Carregar dados da equipe
   useEffect(() => {
     const carregarEquipe = async () => {
       if (!id || !userEmail) return;
@@ -82,15 +80,15 @@ export function Equipe() {
         setEquipe(equipeData);
         setNomeEditado(equipeData.nome);
         setDescricaoEditada(equipeData.descricao || '');
-        // Converter datas para formato YYYY-MM-DD para input type="date"
+        
         setDataInicioEditada(equipeData.inicio ? equipeData.inicio.split('T')[0] : '');
         setDataFimEditada(equipeData.fim ? equipeData.fim.split('T')[0] : '');
 
-        // Verificar se o usuário é líder
+        
         const lider = await equipeService.isLider(equipeId, userEmail);
         setIsLider(lider);
 
-        // Carregar ranking
+        
         await carregarRanking(equipeId);
       } catch (error: any) {
         console.error('Erro ao carregar equipe:', error);
@@ -103,7 +101,7 @@ export function Equipe() {
     carregarEquipe();
   }, [id, userEmail]);
 
-  // Carregar amigos quando o modal abrir
+  
   useEffect(() => {
     const carregarAmigos = async () => {
       if (modalAdicionarMembro && userEmail) {
@@ -111,7 +109,7 @@ export function Equipe() {
         setErro(null);
         try {
           const amigosLista = await usuarioService.listarAmigos(userEmail);
-          // Filtrar o próprio usuário e membros que já estão na equipe
+          
           const membrosEmails = equipe?.usuariosEmails || [];
           const amigosFiltrados = amigosLista.filter(
             amigo => amigo.usuarioEmail !== userEmail && !membrosEmails.includes(amigo.usuarioEmail)
@@ -141,14 +139,14 @@ export function Equipe() {
     try {
       const equipeId = parseInt(id);
 
-      // Atualizar informações básicas
+      
       await equipeService.atualizarInformacoes(equipeId, {
         nome: nomeEditado.trim(),
         descricao: descricaoEditada.trim() || null,
         foto: equipe?.foto || null,
       });
 
-      // Atualizar período se as datas foram alteradas
+      
       if (dataInicioEditada || dataFimEditada) {
         await equipeService.definirPeriodo(equipeId, {
           inicio: dataInicioEditada || null,
@@ -156,7 +154,7 @@ export function Equipe() {
         });
       }
 
-      // Recarregar dados da equipe
+      
       const equipeData = await equipeService.obterPorId(equipeId);
       if (equipeData) {
         setEquipe(equipeData);
@@ -191,13 +189,13 @@ export function Equipe() {
     try {
       await equipeService.adicionarMembro(parseInt(id), emailAmigo);
       
-      // Recarregar dados da equipe
+      
       const equipeData = await equipeService.obterPorId(parseInt(id));
       if (equipeData) {
         setEquipe(equipeData);
       }
 
-      // Remover o amigo da lista (já foi adicionado)
+      
       setAmigos(amigos.filter(amigo => amigo.usuarioEmail !== emailAmigo));
     } catch (error: any) {
       console.error('Erro ao adicionar membro:', error);
@@ -211,7 +209,7 @@ export function Equipe() {
   const handleExpulsarMembro = async (emailMembro: string) => {
     if (!id || !userEmail) return;
 
-    // Confirmar antes de expulsar
+    
     if (!confirm(`Tem certeza que deseja expulsar ${emailMembro} da equipe?`)) {
       return;
     }
@@ -222,7 +220,7 @@ export function Equipe() {
     try {
       await equipeService.removerMembro(parseInt(id), emailMembro, userEmail);
       
-      // Recarregar dados da equipe
+      
       const equipeData = await equipeService.obterPorId(parseInt(id));
       if (equipeData) {
         setEquipe(equipeData);
@@ -244,7 +242,7 @@ export function Equipe() {
 
     try {
       await equipeService.excluirEquipe(parseInt(id), userEmail);
-      // Redirecionar para a página Social após excluir
+      
       navigate('/social');
     } catch (error: any) {
       console.error('Erro ao excluir equipe:', error);
@@ -308,7 +306,7 @@ export function Equipe() {
     return null;
   }
 
-  // Calcular posição do usuário no ranking
+  
   const posicaoRanking = ranking.findIndex(m => m.email === userEmail) + 1 || ranking.length + 1;
 
   return (
@@ -650,7 +648,7 @@ export function Equipe() {
                     const isYou = membro.email === userEmail;
                     const posicao = index + 1;
                     
-                    // Cores para as medalhas
+                    
                     let medalhaCor = '';
                     let medalhaIcon = null;
                     if (posicao === 1) {

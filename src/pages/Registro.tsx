@@ -30,7 +30,7 @@ export function Registro() {
     e.preventDefault();
     setError('');
 
-    // Validações
+    
     if (formData.senha !== formData.confirmarSenha) {
       setError('As senhas não coincidem');
       return;
@@ -53,7 +53,7 @@ export function Registro() {
       });
 
       if (response.sucesso) {
-        // Salvar informações do usuário no localStorage
+        
         localStorage.setItem('user', JSON.stringify({
           email: response.email,
           perfilId: response.perfilId,
@@ -65,7 +65,7 @@ export function Registro() {
         setError(response.mensagem || 'Erro ao criar conta');
       }
     } catch (err: any) {
-      // Se for uma string (erro do interceptor), usar diretamente
+      
       if (typeof err.message === 'string') {
         setError(err.message);
       } else if (err.response?.data?.mensagem) {

@@ -22,7 +22,7 @@ export function Login() {
       const response = await authService.login({ email, senha });
       
       if (response.sucesso) {
-        // Salvar informações do usuário no localStorage
+        
         localStorage.setItem('user', JSON.stringify({
           email: response.email,
           perfilId: response.perfilId,
@@ -34,7 +34,7 @@ export function Login() {
         setError(response.mensagem || 'Erro ao fazer login');
       }
     } catch (err: any) {
-      // Se for uma string (erro do interceptor), usar diretamente
+      
       if (typeof err.message === 'string') {
         setError(err.message);
       } else if (err.response?.data?.mensagem) {

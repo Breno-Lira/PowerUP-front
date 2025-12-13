@@ -72,7 +72,7 @@ const TIPO_REFEICAO_MAP: Record<TipoRefeicao, { nome: string; horario: string }>
 export function Nutricao() {
   const navigate = useNavigate();
 
-  // Obter dados do usuário logado
+  
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
@@ -125,7 +125,7 @@ export function Nutricao() {
   ];
 
   useEffect(() => {
-    // Carregar perfil para obter foto
+    
     if (userData?.perfilId) {
       perfilService.obterPorId(userData.perfilId)
         .then(setPerfilUsuario)
@@ -141,7 +141,7 @@ export function Nutricao() {
     }
   }, [userEmail, userData?.perfilId]);
 
-  // Fechar dropdown ao clicar fora
+  
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -175,46 +175,46 @@ export function Nutricao() {
       setLoading(true);
       setError('');
 
-      // Carregar planos do usuário
+      
       let planos: PlanoNutricional[] = [];
       try {
         planos = await nutricaoService.listarPlanosPorUsuario(userEmail);
       } catch (err: any) {
-        // Se não houver planos (404), usar array vazio (normal para usuário novo)
+        
         if (err.response?.status === 404 || err.message?.includes('404')) {
           planos = [];
         } else {
           console.error('Erro ao carregar planos:', err);
-          // Não mostrar erro se for apenas falta de planos
+          
           if (err.response?.status !== 404) {
             throw err;
           }
         }
       }
 
-      // Armazenar todos os planos
+      
       setTodosPlanos(planos);
 
       if (planos.length > 0) {
-        // Se não há plano selecionado, usar o último criado (maior ID)
+        
         let planoAtivo: PlanoNutricional | undefined;
         const idParaUsar = planoIdSelecionado !== undefined ? planoIdSelecionado : planoSelecionadoId;
 
         if (idParaUsar) {
-          // Verificar se o plano selecionado ainda existe
+          
           planoAtivo = planos.find(p => p.id.id === idParaUsar);
           if (!planoAtivo) {
-            // Se o plano selecionado não existe mais, usar o último criado
+            
             planoAtivo = planos.reduce((prev, current) =>
               (current.id.id > prev.id.id) ? current : prev
             );
             setPlanoSelecionadoId(planoAtivo.id.id);
           } else {
-            // Garantir que o estado está correto
+            
             setPlanoSelecionadoId(planoAtivo.id.id);
           }
         } else {
-          // Pegar o último plano criado (maior ID)
+          
           planoAtivo = planos.reduce((prev, current) =>
             (current.id.id > prev.id.id) ? current : prev
           );
@@ -222,12 +222,12 @@ export function Nutricao() {
         }
 
         if (!planoAtivo) {
-          // Fallback: usar o primeiro plano se algo der errado
+          
           planoAtivo = planos[0];
           setPlanoSelecionadoId(planoAtivo.id.id);
         }
 
-        // Carregar refeições
+        
         const todasRefeicoes = await nutricaoService.listarRefeicoes();
         console.log('[FRONTEND] Plano ativo selecionado:', {
           id: planoAtivo.id.id,
@@ -239,10 +239,9 @@ export function Nutricao() {
           tipo: r.tipo
         })));
 
-        // Extrair IDs de refeições do plano (pode ser array de objetos {id: number} ou array de números)
+        
         const refeicoesIdsDoPlano: number[] = planoAtivo.refeicoes?.map((ref) => {
-          // Se ref é um objeto com propriedade id, retornar ref.id
-          // Se ref é um número, retornar ref diretamente
+          
           if (typeof ref === 'object' && ref !== null && 'id' in ref) {
             return (ref as { id: number }).id;
           }
@@ -251,7 +250,7 @@ export function Nutricao() {
 
         console.log('[FRONTEND] IDs de refeições do plano ativo:', refeicoesIdsDoPlano);
 
-        // Filtrar refeições que pertencem ao plano ativo
+        
         const refeicoesDoPlano = todasRefeicoes.filter((r) => {
           const refeicaoId: number = (r.id && typeof r.id === 'object' && 'id' in r.id)
             ? (r.id as { id: number }).id
@@ -272,7 +271,7 @@ export function Nutricao() {
           horario: TIPO_REFEICAO_MAP[r.tipo].horario,
           totalCalorias: r.caloriasTotais,
           alimentos: r.alimentos.map((a) => {
-            // Buscar o alimento na lista carregada
+            
             const alimentoInfo = alimentos.find(ali => ali.id === a.id);
             return {
               id: a.id,
@@ -292,7 +291,7 @@ export function Nutricao() {
         const caloriasRestantes = Math.max(0, metaCalorias - caloriasConsumidas);
         const percentual = Math.round((caloriasConsumidas / metaCalorias) * 100);
 
-        // Calcular macronutrientes somando os gramas de cada categoria
+        
         let proteinas = 0;
         let carboidratos = 0;
         let gorduras = 0;
@@ -325,7 +324,7 @@ export function Nutricao() {
           planoId: planoAtivo.id.id,
         });
       } else {
-        // Sem plano, usar valores padrão
+        
         setPlanoSelecionadoId(null);
         setNutricao({
           objetivo: 'Bulking',
@@ -352,14 +351,14 @@ export function Nutricao() {
     if (!userEmail) return;
 
     try {
-      // Salvar o plano selecionado atual antes de criar o novo
+      
       const planoAnteriorId = planoSelecionadoId;
 
       const plano = await nutricaoService.criarPlano({
         objetivo: novoPlano.objetivo,
-        refeicoesIds: [], // SEMPRE criar plano vazio, sem refeições
+        refeicoesIds: [], 
         usuarioEmail: userEmail,
-        caloriasObjetivo: novoPlano.metaCalorias, // Enviar a meta de calorias definida pelo usuário
+        caloriasObjetivo: novoPlano.metaCalorias, 
       });
 
       console.log('[FRONTEND] Novo plano criado:', {
@@ -369,28 +368,28 @@ export function Nutricao() {
       });
       console.log('[FRONTEND] Plano anterior selecionado:', planoAnteriorId);
 
-      // Selecionar o novo plano criado
+      
       setPlanoSelecionadoId(plano.id.id);
 
-      // Recarregar dados - isso deve manter as refeições do plano anterior no plano anterior
+      
       await carregarDados(plano.id.id);
 
       setShowCriarPlanoDialog(false);
-      setNovoPlano({ objetivo: 'Bulking', metaCalorias: 2500 }); // Resetar formulário
+      setNovoPlano({ objetivo: 'Bulking', metaCalorias: 2500 });
     } catch (err: any) {
       setError(err.message || 'Erro ao criar plano nutricional');
     }
   };
 
   const handleSelecionarPlano = async (planoId: number) => {
-    // Prevenir múltiplas chamadas simultâneas se já estiver selecionado
+    
     if (planoSelecionadoId === planoId) {
       return;
     }
 
-    // Atualizar o plano selecionado imediatamente para feedback visual
+    
     setPlanoSelecionadoId(planoId);
-    // Recarregar dados para atualizar a visualização, passando o ID do plano
+    
     await carregarDados(planoId);
   };
 
@@ -420,7 +419,7 @@ export function Nutricao() {
     }
 
     try {
-      // Usar os alimentos selecionados
+      
       const alimentosIds = alimentosSelecionados.length > 0
         ? alimentosSelecionados
         : novaRefeicao.alimentosIds;
@@ -428,18 +427,18 @@ export function Nutricao() {
       const refeicao = await nutricaoService.criarRefeicao({
         tipo: novaRefeicao.tipo,
         alimentosIds: alimentosIds,
-        caloriasTotais: null, // Será calculado automaticamente no backend
+        caloriasTotais: null, 
         inicio: null,
         fim: null,
       });
 
-      // Buscar o plano ativo atual para obter as refeições corretas
+      
       const planoAtivo = todosPlanos.find(p => p.id.id === planoSelecionadoId);
       if (!planoAtivo) {
         throw new Error('Plano não encontrado');
       }
 
-      // Extrair IDs de refeições do plano ativo
+      
       const refeicoesIdsAtuais: number[] = planoAtivo.refeicoes?.map((ref) => {
         if (typeof ref === 'object' && ref !== null && 'id' in ref) {
           return (ref as { id: number }).id;
@@ -465,7 +464,7 @@ export function Nutricao() {
         refeicoesIds: [...refeicoesIdsAtuais, novoRefeicaoId],
       });
 
-      // Limpar estado do formulário
+      
       setAlimentosSelecionados([]);
       setBuscaAlimento('');
       setMostrarDropdownAlimentos(false);
@@ -475,7 +474,7 @@ export function Nutricao() {
       });
       setShowRefeicaoDialog(false);
 
-      // Recarregar dados para atualizar a lista de refeições
+      
       await carregarDados(planoSelecionadoId);
     } catch (err: any) {
       setError(err.message || 'Erro ao salvar refeição');
@@ -488,13 +487,13 @@ export function Nutricao() {
     try {
       await nutricaoService.excluirRefeicao(refeicaoId);
 
-      // Buscar o plano ativo atual para obter as refeições corretas
+      
       const planoAtivo = todosPlanos.find(p => p.id.id === planoSelecionadoId);
       if (!planoAtivo) {
         throw new Error('Plano não encontrado');
       }
 
-      // Extrair IDs de refeições do plano ativo e remover a refeição excluída
+      
       const refeicoesIdsAtuais: number[] = planoAtivo.refeicoes?.map((ref) => {
         if (typeof ref === 'object' && ref !== null && 'id' in ref) {
           return (ref as { id: number }).id;
@@ -502,7 +501,7 @@ export function Nutricao() {
         return ref as number;
       }).filter(id => id !== refeicaoId) || [];
 
-      // Remover refeição do plano
+      
       await nutricaoService.modificarPlano({
         planoId: planoSelecionadoId,
         objetivo: planoAtivo.objetivo,
@@ -516,7 +515,7 @@ export function Nutricao() {
   };
 
   const handleDeletarPlano = async (planoId: number, event?: React.MouseEvent<HTMLButtonElement>) => {
-    // Prevenir que o clique no botão selecione o plano
+    
     if (event) {
       event.stopPropagation();
     }
@@ -524,15 +523,15 @@ export function Nutricao() {
     if (!confirm('Tem certeza que deseja deletar este plano nutricional?')) return;
 
     try {
-      // Excluir o plano no backend (isso também remove as refeições associadas via cascade ou manualmente)
+      
       await nutricaoService.excluirPlano(planoId);
 
-      // Se o plano deletado era o ativo, limpar seleção
+      
       if (planoSelecionadoId === planoId) {
         setPlanoSelecionadoId(null);
       }
 
-      // Recarregar dados para atualizar a lista
+      
       await carregarDados(null);
     } catch (err: any) {
       setError(err.message || 'Erro ao deletar plano');

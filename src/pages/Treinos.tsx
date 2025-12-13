@@ -77,7 +77,7 @@ export function Treinos() {
   const [erro, setErro] = useState<string | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
   
-  // Estados para frequência
+  
   const [perfilId, setPerfilId] = useState<number | null>(null);
   const [planoTreinoSelecionado, setPlanoTreinoSelecionado] = useState<PlanoTreinoResumo | null>(null);
   const [sequenciaDias, setSequenciaDias] = useState(0);
@@ -86,7 +86,7 @@ export function Treinos() {
   const [registrandoFrequencia, setRegistrandoFrequencia] = useState(false);
   const [editandoDias, setEditandoDias] = useState<number | null>(null);
 
-  // Obter dados do usuário logado
+  
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
@@ -105,26 +105,26 @@ export function Treinos() {
       
       setPlanosAtivos(planos.filter(p => p.estado === 'Ativo'));
       setPlanosHistoricos(planos.filter(p => p.estado === 'Historico'));
-      setTodosPlanos(planos); // Armazenar todos os planos para buscar nomes
+      setTodosPlanos(planos); 
       setExercicios(exerciciosList);
       
       if (perfil) {
         setPerfilId(perfil.id);
-        // Selecionar o primeiro plano ativo por padrão
+        
         const primeiroPlanoAtivo = planos.find(p => p.estado === 'Ativo');
         if (primeiroPlanoAtivo) {
           setPlanoTreinoSelecionado(primeiroPlanoAtivo);
         } else {
-          // Limpar seleção se não houver planos ativos
+          
           setPlanoTreinoSelecionado(null);
         }
-        // Calcular meta semanal como soma de todos os dias de todos os planos ativos
+        
         const totalDias = planos
           .filter(p => p.estado === 'Ativo')
           .reduce((sum, p) => sum + p.dias.length, 0);
         setMetaSemanal(totalDias);
       } else if (userData?.perfilId) {
-        // Fallback: usar perfilId do userData se o perfil não foi encontrado
+        
         setPerfilId(userData.perfilId);
       }
     } catch (error: any) {
@@ -144,21 +144,20 @@ export function Treinos() {
     try {
       const frequenciasList = await frequenciaService.listarPorPerfil(perfilId);
       
-      // Calcular sequência total considerando todos os planos
+      
       const sequenciaTotal = await frequenciaService.calcularSequenciaDiasTotal(perfilId);
       
-      // Calcular frequência semanal baseada em TODAS as frequências da semana atual
-      // (incluindo frequências de planos deletados)
+      
       const hoje = new Date();
       const inicioSemana = new Date(hoje);
-      inicioSemana.setDate(hoje.getDate() - hoje.getDay() + 1); // Segunda-feira
+      inicioSemana.setDate(hoje.getDate() - hoje.getDay() + 1); 
       inicioSemana.setHours(0, 0, 0, 0);
       
       const fimSemana = new Date(inicioSemana);
-      fimSemana.setDate(inicioSemana.getDate() + 6); // Domingo
+      fimSemana.setDate(inicioSemana.getDate() + 6); 
       fimSemana.setHours(23, 59, 59, 999);
       
-      // Contar dias únicos com frequência na semana atual
+      
       const frequenciasSemanaAtual = frequenciasList
         .filter(f => {
           const dataFrequencia = new Date(f.dataDePresenca);
@@ -166,16 +165,14 @@ export function Treinos() {
         })
         .map(f => {
           const dataFrequencia = new Date(f.dataDePresenca);
-          return dataFrequencia.toDateString(); // Para agrupar por dia
+          return dataFrequencia.toDateString(); 
         });
       
-      // Contar dias únicos (pode haver múltiplas frequências no mesmo dia)
+      
       const diasUnicos = new Set(frequenciasSemanaAtual);
       const frequenciaTotal = diasUnicos.size;
       
-      // Para a lista de histórico, sempre mostrar TODAS as frequências
-      // (o filtro por plano só é usado no grid de dias da semana)
-      // Isso permite ver frequências de planos deletados
+      
       setFrequencias(frequenciasList);
       setSequenciaDias(sequenciaTotal);
       setFrequenciaSemanal(frequenciaTotal);
@@ -232,7 +229,7 @@ export function Treinos() {
     }
   };
 
-  // Carregar perfil para obter foto
+  
   useEffect(() => {
     if (userData?.perfilId) {
       perfilService.obterPorId(userData.perfilId)
@@ -241,38 +238,38 @@ export function Treinos() {
     }
   }, [userData?.perfilId]);
 
-  // Carregar planos de treino e exercícios
+  
   useEffect(() => {
     if (userEmail) {
       carregarDados();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [userEmail]);
 
-  // Garantir que perfilId seja definido mesmo se carregarDados falhar
+  
   useEffect(() => {
     if (!perfilId && userData?.perfilId) {
       setPerfilId(userData.perfilId);
     }
   }, [perfilId, userData?.perfilId]);
 
-  // Carregar frequências quando perfilId mudar (mesmo sem planos ativos)
+  
   useEffect(() => {
     if (perfilId) {
       carregarFrequencias();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [perfilId]);
   
-  // Recarregar frequências quando planos ativos mudarem (para recalcular frequência semanal)
+  
   useEffect(() => {
     if (perfilId) {
       carregarFrequencias();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [planosAtivos]);
 
-  // Recalcular meta semanal quando planos ativos mudarem
+  
   useEffect(() => {
     const totalDias = planosAtivos.reduce((sum, p) => sum + p.dias.length, 0);
     setMetaSemanal(totalDias);
@@ -282,7 +279,7 @@ export function Treinos() {
     if (perfilId) {
       carregarProgresso();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [perfilId]);
 
   const menuItems = [
@@ -301,15 +298,14 @@ export function Treinos() {
 
   const formatarTempo = (tempoStr: string | null): string => {
     if (!tempoStr) return '—';
-    // O tempo vem como "HH:mm:ss" do backend
-    // Se vier como ISO string, extrair apenas a parte de tempo
+    
     try {
       if (tempoStr.includes('T')) {
-        // Formato ISO: extrair apenas HH:mm:ss
+        
         const partes = tempoStr.split('T')[1]?.split('.')[0] || tempoStr;
-        return partes.substring(0, 8); // HH:mm:ss
+        return partes.substring(0, 8); 
       }
-      // Já está no formato HH:mm:ss
+      
       return tempoStr.substring(0, 8);
     } catch {
       return tempoStr;
@@ -330,14 +326,14 @@ export function Treinos() {
       return;
     }
 
-    // Validação condicional baseada no tipo
+    
     if (novoExercicio.tipo === 'Peso') {
       if (!novoExercicio.repeticoes) {
         setErro('Preencha todos os campos obrigatórios.');
         return;
       }
     } else if (novoExercicio.tipo === 'Cardio') {
-      // Para cardio, não precisa de repeticoes, peso ou series
+      
     }
 
     const repeticoes = novoExercicio.tipo === 'Peso' ? parseInt(novoExercicio.repeticoes) : null;
@@ -345,9 +341,7 @@ export function Treinos() {
     const peso = novoExercicio.tipo === 'Peso' ? (parseFloat(novoExercicio.peso) || 0) : null;
     const distancia = novoExercicio.distancia ? parseFloat(novoExercicio.distancia) : null;
     
-    // Converter tempo de duração (HH:MM) para LocalDateTime
-    // Usamos uma data base (1970-01-01) e adicionamos o tempo informado
-    // Formato: "1970-01-01THH:MM:SS" (sem fuso horário, para representar apenas duração)
+    
     let tempo = null;
     if (novoExercicio.tempo) {
       const partes = novoExercicio.tempo.split(':');
@@ -355,7 +349,7 @@ export function Treinos() {
       const minutos = parseInt(partes[1]) || 0;
       const segundos = parseInt(partes[2]) || 0;
       
-      // Formatar como LocalDateTime (sem Z no final para evitar conversão de fuso)
+      
       const horasStr = String(horas).padStart(2, '0');
       const minutosStr = String(minutos).padStart(2, '0');
       const segundosStr = String(segundos).padStart(2, '0');
@@ -382,10 +376,10 @@ export function Treinos() {
         tempo,
       });
 
-      // Recarregar dados
+      
       await carregarDados();
       
-      // Reset form
+      
       setNovoExercicio({
         exercicioId: '',
         peso: '',
@@ -434,10 +428,10 @@ export function Treinos() {
         nome: nomeNovoPlano,
       });
 
-      // Recarregar dados
+      
       await carregarDados();
       
-      // Fechar modal e reset
+      
       setModalNovoPlanoAberto(false);
       setNomeNovoPlano('');
     } catch (error: any) {
@@ -463,7 +457,7 @@ export function Treinos() {
     try {
       await planoTreinoService.excluirPlanoTreino(planoId);
       await carregarDados();
-      // Recarregar frequências para atualizar o grid de dias da semana
+      
       if (perfilId) {
         await carregarFrequencias();
       }
@@ -502,7 +496,7 @@ export function Treinos() {
 
     try {
       if (comFoto) {
-        // Criar input de arquivo temporário
+        
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -516,7 +510,7 @@ export function Treinos() {
           const reader = new FileReader();
           reader.onloadend = async () => {
             const base64 = reader.result as string;
-            const base64Data = base64.split(',')[1]; // Remove o prefixo data:image/...
+            const base64Data = base64.split(',')[1]; 
 
             try {
               await frequenciaService.registrarPresencaComFotoAutomatica({
@@ -526,7 +520,7 @@ export function Treinos() {
               });
               setMensagemSucesso('Frequência registrada com foto com sucesso!');
               await carregarFrequencias();
-              await carregarDados(); // Recarregar para atualizar os planos
+              await carregarDados(); 
             } catch (error: any) {
               console.error('Erro ao registrar frequência com foto:', error);
               const mensagemErro = error.response?.data?.mensagem || error.message || 'Erro ao registrar frequência com foto.';
@@ -546,7 +540,7 @@ export function Treinos() {
         });
         setMensagemSucesso('Frequência registrada com sucesso!');
         await carregarFrequencias();
-        await carregarDados(); // Recarregar para atualizar os planos
+        await carregarDados(); 
       }
     } catch (error: any) {
       console.error('Erro ao registrar frequência:', error);
@@ -1225,11 +1219,11 @@ export function Treinos() {
                         const hoje = new Date();
                         const diasSemana = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
                         
-                        // Função auxiliar para normalizar data (apenas ano, mês, dia)
+                        
                         const normalizarData = (data: Date | string): string => {
                           let d: Date;
                           if (typeof data === 'string') {
-                            // Se a string já está no formato YYYY-MM-DD, usar diretamente
+                            
                             if (/^\d{4}-\d{2}-\d{2}/.test(data)) {
                               return data.substring(0, 10);
                             }
@@ -1237,24 +1231,23 @@ export function Treinos() {
                           } else {
                             d = data;
                           }
-                          // Usar métodos locais para manter consistência
+                          
                           const ano = d.getFullYear();
                           const mes = String(d.getMonth() + 1).padStart(2, '0');
                           const dia = String(d.getDate()).padStart(2, '0');
                           return `${ano}-${mes}-${dia}`;
                         };
                         
-                        // Sempre mostrar todas as frequências (incluindo de planos deletados)
-                        // Normalizar as datas das frequências para comparar apenas dia/mês/ano
+                        
                         const diasCompletos = frequencias.map(f => {
                           return normalizarData(f.dataDePresenca);
                         });
 
-                        // Gerar os últimos 7 dias
+                       
                         const ultimos7Dias = Array.from({ length: 7 }, (_, i) => {
                           const data = new Date(hoje);
                           data.setDate(data.getDate() - (6 - i));
-                          // Normalizar hora para meia-noite para comparação precisa
+                          
                           data.setHours(0, 0, 0, 0);
                           const dataNormalizada = normalizarData(data);
                           const estaCompleto = diasCompletos.includes(dataNormalizada);
@@ -1311,15 +1304,15 @@ export function Treinos() {
                     <div className="space-y-4">
                       {frequencias
                         .sort((a, b) => {
-                          // Ordenar por data (mais recente primeiro)
+                          
                           return new Date(b.dataDePresenca).getTime() - new Date(a.dataDePresenca).getTime();
                         })
                         .map((frequencia) => {
-                          // Buscar nome do plano de treino
+                          
                           const plano = todosPlanos.find(p => p.id === frequencia.planoTreinoId);
                           const nomePlano = plano?.nome || (frequencia.planoTreinoId ? 'Plano deletado' : 'Sem plano');
                           
-                          // Formatar data
+                          
                           const dataFormatada = new Date(frequencia.dataDePresenca).toLocaleDateString('pt-BR', {
                             day: '2-digit',
                             month: '2-digit',

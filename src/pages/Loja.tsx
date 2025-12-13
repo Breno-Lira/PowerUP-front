@@ -30,7 +30,7 @@ interface CategoriaFiltro {
 export function Loja() {
   const navigate = useNavigate();
   
-  // Obter dados do usuário logado
+  
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
@@ -107,7 +107,7 @@ export function Loja() {
     return null;
   };
 
-  // Função para calcular quantidades dos filtros
+  
   const calcularQuantidades = (itens: ItemLojaResumo[]) => {
     const contadores: { [key: string]: number } = {};
 
@@ -133,20 +133,20 @@ export function Loja() {
     );
   };
 
-  // Função para filtrar itens baseado nos filtros selecionados
+  
   const aplicarFiltros = (itens: ItemLojaResumo[], filtrosAtuais: CategoriaFiltro[]) => {
     const filtrosSelecionados = filtrosAtuais.flatMap((categoria) =>
       categoria.itens.filter((item) => item.selecionado).map((item) => item.id)
     );
 
-    // Se nenhum filtro está selecionado, mostrar todos os itens
+    
     if (filtrosSelecionados.length === 0) {
       setItensFiltrados(itens);
       return;
     }
 
     const itensFiltrados = itens.filter((item) => {
-      // Verifica se o item corresponde a algum filtro selecionado
+      
       return filtrosSelecionados.some((filtroId) => {
         return (
           inferirQualidade(item) === filtroId ||
@@ -174,18 +174,18 @@ export function Loja() {
     });
   };
 
-  // Reaplicar filtros sempre que filtros ou itens mudarem
+  
   useEffect(() => {
     aplicarFiltros(itens, filtros);
   }, [filtros, itens]);
 
   useEffect(() => {
-    // Obter dados do usuário logado
+    
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     const perfilId = userData.perfilId;
     
     if (perfilId) {
-      // Carregar perfil para obter foto
+      
       perfilService.obterPorId(perfilId)
         .then(setPerfilUsuario)
         .catch(console.error);
@@ -208,7 +208,7 @@ export function Loja() {
   }, []);
 
   useEffect(() => {
-    // Carregar itens da loja
+    
     setLoadingItens(true);
     console.log('Iniciando carregamento de itens da loja...');
     lojaService.listarItens()
@@ -239,7 +239,7 @@ export function Loja() {
       });
   }, []);
 
-  // Aplicar filtros quando os filtros ou itens mudarem
+  
   useEffect(() => {
     if (itens.length > 0) {
       aplicarFiltros(itens, filtros);
@@ -256,14 +256,14 @@ export function Loja() {
       return;
     }
 
-    // Verificar se já possui o item
+    
     const jaPossui = avatar.acessorios?.some(a => a.id === item.id);
     if (jaPossui) {
       alert('Você já possui este acessório!');
       return;
     }
 
-    // Verificar se tem dinheiro suficiente
+    
     if (cofre < item.preco) {
       alert(`Dinheiro insuficiente! Você precisa de ${item.preco} $, mas possui apenas ${cofre} $.`);
       return;
@@ -276,7 +276,7 @@ export function Loja() {
     try {
       await lojaService.comprarItem(avatar.id, item.id);
       
-      // Recarregar avatar para atualizar dinheiro e inventário
+      
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       const perfilId = userData.perfilId;
       if (perfilId) {
@@ -284,7 +284,7 @@ export function Loja() {
         setAvatar(avatarData);
         setCofre(avatarData.dinheiro);
         
-        // Recarregar itens da loja para atualizar status (mostrar "Possuído")
+        
         const itensData = await lojaService.listarItens();
         setItens(itensData);
       }
@@ -525,7 +525,7 @@ export function Loja() {
                               alt={item.nome}
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                // Se a imagem falhar, esconder e mostrar o ícone
+                                
                                 const imgElement = e.currentTarget;
                                 imgElement.style.display = 'none';
                                 const iconContainer = imgElement.parentElement?.querySelector('.icon-fallback');

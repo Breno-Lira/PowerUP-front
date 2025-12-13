@@ -41,7 +41,7 @@ export function Home() {
   const [conquistas, setConquistas] = useState<ConquistasComStatusResponse | null>(null);
   const [conquistaSelecionada, setConquistaSelecionada] = useState<ConquistaResumo | null>(null);
 
-  // Obter dados do usuário logado
+  
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData.email;
 
@@ -62,7 +62,7 @@ export function Home() {
         setPerfil(perfilResp);
         setAvatar(avatarResp);
 
-        // Buscar atributos calculados do avatar
+        
         try {
           const atributosResp = await avatarService.obterAtributos(avatarResp.id);
           setAtributos(atributosResp);
@@ -70,7 +70,7 @@ export function Home() {
           console.warn('Não foi possível carregar atributos do avatar', e);
         }
 
-        // Ranking global: busca posição do usuário
+        
         try {
           const rankingGlobal = await rankingService.global();
           const entradaUsuario = rankingGlobal.find(r =>
@@ -84,7 +84,7 @@ export function Home() {
           console.warn('Não foi possível carregar posição no ranking global', e);
         }
 
-        // Buscar conquistas com status
+        
         try {
           const conquistasData = await conquistaService.listarTodasComStatus(userData.perfilId);
           setConquistas(conquistasData);
@@ -92,33 +92,33 @@ export function Home() {
           console.warn('Não foi possível carregar conquistas', e);
         }
 
-        // Calcular frequência semanal e meta semanal
+        
         let treinosCompletos = 0;
         let treinosTotal = 0;
         try {
-          // Buscar planos de treino ativos
+          
           const planos = await planoTreinoService.listarPorUsuario(userEmail);
           const planosAtivos = planos.filter(p => p.estado === 'Ativo');
           
-          // Calcular meta semanal (soma de todos os dias de todos os planos ativos)
+          
           if (planosAtivos.length > 0) {
             treinosTotal = planosAtivos.reduce((sum, p) => sum + p.dias.length, 0);
           }
 
-          // Buscar frequências do perfil
+          
           const frequenciasList = await frequenciaService.listarPorPerfil(userData.perfilId);
           
-          // Calcular frequência semanal (dias únicos na semana atual)
+          
           const hoje = new Date();
           const inicioSemana = new Date(hoje);
-          inicioSemana.setDate(hoje.getDate() - hoje.getDay() + 1); // Segunda-feira
+          inicioSemana.setDate(hoje.getDate() - hoje.getDay() + 1); 
           inicioSemana.setHours(0, 0, 0, 0);
           
           const fimSemana = new Date(inicioSemana);
-          fimSemana.setDate(inicioSemana.getDate() + 6); // Domingo
+          fimSemana.setDate(inicioSemana.getDate() + 6); 
           fimSemana.setHours(23, 59, 59, 999);
           
-          // Contar dias únicos com frequência na semana atual
+          
           const frequenciasSemanaAtual = frequenciasList
             .filter(f => {
               const dataFrequencia = new Date(f.dataDePresenca);
@@ -126,14 +126,14 @@ export function Home() {
             })
             .map(f => {
               const dataFrequencia = new Date(f.dataDePresenca);
-              return dataFrequencia.toDateString(); // Para agrupar por dia
+              return dataFrequencia.toDateString(); 
             });
           
-          // Contar dias únicos
+          
           const diasUnicos = new Set(frequenciasSemanaAtual);
           treinosCompletos = diasUnicos.size;
           
-          // Se não há planos ativos, usar a frequência como total também
+          
           if (planosAtivos.length === 0) {
             treinosTotal = treinosCompletos;
           }

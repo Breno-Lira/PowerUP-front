@@ -79,14 +79,14 @@ export function ArenaDuelos() {
       if (avatarUsuarioId) {
         const vits = duelos.filter((d) => {
           const r = d.resultado?.toLowerCase() || '';
-          // Vitória: resultado diz que desafiante ganhou E eu sou o avatar1, OU resultado diz que desafiado ganhou E eu sou o avatar2
+          
           if (r.includes('desafiante') && d.avatar1Id === avatarUsuarioId) return true;
           if (r.includes('desafiado') && d.avatar2Id === avatarUsuarioId) return true;
           return false;
         }).length;
         const derr = duelos.filter((d) => {
           const r = d.resultado?.toLowerCase() || '';
-          // Derrota: resultado diz que desafiante ganhou E eu sou o avatar2, OU resultado diz que desafiado ganhou E eu sou o avatar1
+          
           if (r.includes('desafiante') && d.avatar2Id === avatarUsuarioId) return true;
           if (r.includes('desafiado') && d.avatar1Id === avatarUsuarioId) return true;
           return false;
@@ -122,7 +122,7 @@ export function ArenaDuelos() {
       const avatars = [duelo.avatar1Id, duelo.avatar2Id].filter(Boolean) as number[];
       for (const avatarId of avatars) {
         try {
-          // Sempre tenta buscar o nome real do perfil
+          
           const avatar = await avatarService.obterPorId(avatarId);
           const pid = avatar.perfilId;
           if (pid) {
@@ -133,7 +133,7 @@ export function ArenaDuelos() {
             novosAvatares[avatarId] = `Avatar ${avatarId}`;
           }
         } catch (e) {
-          // fallback
+          
           novosAvatares[avatarId] = `Avatar ${avatarId}`;
         }
       }
@@ -152,7 +152,7 @@ export function ArenaDuelos() {
     if (historico.length > 0) {
       resolverNomes(historico);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [historico]);
 
   const carregarAmigos = async () => {
@@ -200,7 +200,7 @@ export function ArenaDuelos() {
     if (perfilId && avatarUsuarioId) {
       carregarHistorico();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [avatarUsuarioId]);
 
   const handleIniciarDuelo = async (desafiadoPerfilId: number, nomeDesafiado: string) => {
@@ -212,9 +212,6 @@ export function ArenaDuelos() {
       const resultado = await dueloService.realizarDuelo(perfilId, desafiadoPerfilId);
       const resultadoLower = resultado.resultado?.toLowerCase() || '';
 
-      // O usuário é o avatar1 (desafiante)
-      // Se contém "desafiante" ou "a1", o desafiante (usuário) ganhou = vitória
-      // Se contém "desafiado" ou "a2", o desafiado ganhou = derrota
       let tipoResultado: 'vitoria' | 'derrota' | 'empate' = 'empate';
       if (resultadoLower.includes('desafiante') || resultadoLower.includes('a1')) {
         tipoResultado = 'vitoria';
@@ -342,10 +339,10 @@ export function ArenaDuelos() {
                   {historico.map((duelo) => {
                     const resultadoLower = duelo.resultado?.toLowerCase() || '';
 
-                    // Determinar se você ganhou, perdeu ou empatou
+                    
                     let tipoResultado: 'vitoria' | 'derrota' | 'empate' = 'empate';
 
-                    // Se você é o avatar1 (desafiante)
+                    
                     if (duelo.avatar1Id === avatarUsuarioId) {
                       if (resultadoLower.includes('desafiante') || resultadoLower.includes('a1')) {
                         tipoResultado = 'vitoria';
@@ -353,7 +350,7 @@ export function ArenaDuelos() {
                         tipoResultado = 'derrota';
                       }
                     }
-                    // Se você é o avatar2 (desafiado)
+                    
                     else if (duelo.avatar2Id === avatarUsuarioId) {
                       if (resultadoLower.includes('desafiado') || resultadoLower.includes('a2')) {
                         tipoResultado = 'vitoria';

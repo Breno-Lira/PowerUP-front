@@ -47,7 +47,7 @@ export function Feedback() {
   const [frequenciasDisponiveis, setFrequenciasDisponiveis] = useState<FrequenciaResumo[]>([]);
   const [frequenciaSelecionada, setFrequenciaSelecionada] = useState<FrequenciaResumo | null>(null);
 
-  // Obter dados do usuário logado
+  
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
@@ -66,13 +66,13 @@ export function Feedback() {
   ];
 
   useEffect(() => {
-    // Carregar perfil para obter foto
+    
     if (userData?.perfilId) {
       perfilService.obterPorId(userData.perfilId)
         .then(setPerfilUsuario)
         .catch(console.error);
       
-      // Carregar frequências para o campo de data
+      
       carregarFrequencias();
     }
     
@@ -84,7 +84,7 @@ export function Feedback() {
     
     try {
       const frequencias = await frequenciaService.listarPorPerfil(userData.perfilId);
-      // Ordenar por data (mais recente primeiro) e remover duplicatas por data
+      
       const frequenciasUnicas = frequencias
         .sort((a, b) => new Date(b.dataDePresenca).getTime() - new Date(a.dataDePresenca).getTime())
         .filter((freq, index, self) => {
@@ -163,7 +163,7 @@ export function Feedback() {
     setFeedbackEditando(feedback);
     setNovaClassificacao(feedback.classificacao);
     setNovaDescricao(feedback.feedback);
-    // Para edição, não permitir alterar a data/frequência
+    
     setDataSelecionada('');
     setFrequenciaSelecionada(null);
     setShowDialog(true);
@@ -188,13 +188,13 @@ export function Feedback() {
     try {
       setError('');
       if (feedbackEditando) {
-        // Modificar feedback existente
+        
         await feedbackService.modificar(feedbackEditando.id, {
           classificacao: novaClassificacao,
           descricao: novaDescricao,
         });
       } else {
-        // Criar novo feedback usando a frequência selecionada
+        
         await feedbackService.criar({
           frequenciaId: frequenciaSelecionada!.id,
           email: userEmail,
@@ -400,7 +400,7 @@ export function Feedback() {
                   onChange={(e) => {
                     const dataSelecionada = e.target.value;
                     setDataSelecionada(dataSelecionada);
-                    // Buscar a frequência correspondente à data selecionada
+                    
                     const frequencia = frequenciasDisponiveis.find(f => {
                       const dataFreq = new Date(f.dataDePresenca).toISOString().split('T')[0];
                       return dataFreq === dataSelecionada;

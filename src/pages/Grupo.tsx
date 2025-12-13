@@ -41,7 +41,7 @@ export function Grupo() {
   const [grupo, setGrupo] = useState<GrupoData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Dados mockados baseados no wireframe
+  
   useEffect(() => {
     const dadosMock: GrupoData = {
       id: parseInt(id || '1'),
@@ -80,7 +80,7 @@ export function Grupo() {
       ],
     };
     
-    // Simular carregamento
+    
     setTimeout(() => {
       setGrupo(dadosMock);
       setLoading(false);

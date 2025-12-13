@@ -44,7 +44,7 @@ export function Meta() {
     exigenciaMinima: null,
   });
 
-  // Obter dados do usuário logado
+  
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
 
@@ -70,15 +70,14 @@ export function Meta() {
     if (!userEmail) return;
     
     try {
-      // Carregar exercícios primeiro
+      
       const exerciciosList = await exercicioService.listarTodos();
       setExercicios(exerciciosList);
 
-      // Carregar planos de treino do usuário
+      
       const planos = await planoTreinoService.listarPorUsuario(userEmail);
       
-      // Extrair todos os treinos de todos os planos
-      // Usar exerciciosList que acabou de ser carregado
+  
       const todosTreinos: Array<{ id: number; nome: string; exercicioNome: string }> = [];
       planos.forEach(plano => {
         plano.treinos.forEach(treino => {
@@ -134,7 +133,7 @@ export function Meta() {
       dataFim: '',
       exigenciaMinima: null,
     });
-    // Recarregar exercícios e treinos ao abrir o modal
+    
     await carregarExerciciosETreinos();
     setModalAberto(true);
   };
@@ -142,7 +141,7 @@ export function Meta() {
   const abrirModalEditar = async (meta: MetaResumo) => {
     setEditando(true);
     setMetaEditando(meta);
-    // Extrair apenas a data (yyyy-MM-dd) da string ISO
+    
     const dataInicio = meta.dataInicio ? meta.dataInicio.split('T')[0] : '';
     const dataFim = meta.dataFim ? meta.dataFim.split('T')[0] : '';
     setFormMeta({
@@ -153,7 +152,7 @@ export function Meta() {
       dataFim,
       exigenciaMinima: meta.exigenciaMinima,
     });
-    // Recarregar exercícios e treinos ao abrir o modal
+    
     await carregarExerciciosETreinos();
     setModalAberto(true);
   };
@@ -214,7 +213,7 @@ export function Meta() {
   };
 
   const obterStatusMeta = (meta: MetaResumo) => {
-    // Se a meta foi marcada como concluída pelo sistema
+    
     if (meta.concluida) {
       return { texto: 'Concluída', cor: 'bg-green-600' };
     }

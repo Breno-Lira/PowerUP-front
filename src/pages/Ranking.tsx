@@ -29,7 +29,7 @@ interface TituloRank {
 
 export function Ranking() {
   const navigate = useNavigate();
-  // Obter dados do usuário logado
+  
   const userData = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = userData?.email;
   const [perfilUsuario, setPerfilUsuario] = useState<PerfilResumo | null>(null);
@@ -70,7 +70,7 @@ export function Ranking() {
   ];
 
   useEffect(() => {
-    // Carregar perfil para obter foto
+    
     if (userData?.perfilId) {
       perfilService.obterPorId(userData.perfilId)
         .then(setPerfilUsuario)
